@@ -16,6 +16,18 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
+## Artifacts
+
+### NevrFade — Premium Streetwear (`artifacts/nevr-fade`)
+- **Type**: React + Vite (frontend-only, no backend)
+- **Preview path**: `/`
+- **Stack**: React, Vite, Tailwind CSS, Framer Motion, Lucide React, Wouter
+- **Design**: Premium streetwear brand site inspired by Supreme/Aesop editorial aesthetic
+- **Colors**: Background #F5F0EB (warm beige), Dark #0D0D0D, Accent #C8B89A (sand/taupe)
+- **Fonts**: Bebas Neue (headings) + Inter (body)
+- **Sections**: Navbar, Hero, Marquee ticker, About/Mission, Limited Drops (product grid), Brand Story, CTA Banner, Footer
+- **Key files**: `src/components/` (all sections), `src/pages/Home.tsx`, `src/index.css`
+
 ## Key Commands
 
 - `pnpm run typecheck` — full typecheck across all packages

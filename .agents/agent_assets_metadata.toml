@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "h6yNbNOBfeJBJZj9bG9cM"
+uri = "file://artifacts/nevr-fade/public/product-1.png"
+type = "image"
+title = "model in boxy fit tshirt"
+
+[[generated]]
+id = "rVjZ-41IKv_y4_RogZz6I"
+uri = "file://artifacts/nevr-fade/public/product-2.png"
+type = "image"
+title = "folded premium streetwear hoodie"
+
+[[generated]]
+id = "cwB1zfFKa4KV-exdkGymv"
+uri = "file://artifacts/nevr-fade/public/product-3.png"
+type = "image"
+title = "model wearing gym sando"

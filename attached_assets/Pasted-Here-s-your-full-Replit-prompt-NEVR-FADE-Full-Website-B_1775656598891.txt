@@ -1,0 +1,166 @@
+Here's your full Replit prompt:
+
+---
+
+**NEVR FADE — Full Website Build Prompt for Replit**
+
+---
+
+Build a complete, production-ready multi-section website for **NevrFade**, a premium streetwear brand. Use **HTML, CSS, and vanilla JavaScript** only. No frameworks. Single `index.html` file with embedded CSS and JS unless otherwise noted.
+
+---
+
+**BRAND IDENTITY**
+
+- Brand Name: NevrFade
+- Logo: Use the uploaded logo asset `neverfade-logo.png` (black wordmark — "NEVR" in bold block caps, "FADE" in bold brush/script style). Place it on light backgrounds as-is; invert it for dark sections using CSS `filter: invert(1)`.
+- Tagline: *Premium streetwear designed to last — in style, quality, and identity.*
+- Brand Personality: Premium. Minimal. Bold. Timeless.
+- Tone: Confident, editorial, no fluff. Short sentences. Strong verbs.
+
+---
+
+**COLOR PALETTE & TYPOGRAPHY**
+
+Colors:
+- Background Primary: `#F5F0EB` (warm off-white / beige)
+- Background Dark: `#0D0D0D` (near black)
+- Text Primary on Light: `#111111`
+- Text Primary on Dark: `#F5F0EB`
+- Accent: `#C8B89A` (warm sand/taupe — used sparingly for borders, dividers, hover states)
+- Pure White: `#FFFFFF` for card surfaces on dark sections
+
+Typography:
+- Headings: `"Bebas Neue"` or `"Anton"` (Google Fonts) — uppercase, wide tracking
+- Body/Sub: `"Inter"` or `"DM Sans"` — clean, modern, regular weight
+- Letter-spacing on headings: `0.04em`
+- Never use more than 2 font families
+
+---
+
+**OVERALL FEEL & UI/UX DIRECTION**
+
+- The website should feel like a premium fashion editorial — think Supreme meets Aesop. Clean, spacious, intentional.
+- Heavy use of whitespace. No clutter. Every element earns its place.
+- Scroll animations: subtle fade-in-up on sections using IntersectionObserver.
+- Cursor: custom CSS cursor — a small `+` crosshair style for desktop.
+- Hover effects: underline-slide effect on nav links; scale 1.03 on product cards.
+- No carousels or auto-sliders. Static grid layouts only.
+- Sticky navbar that transitions from transparent (over hero) to solid dark background on scroll.
+- Mobile-first responsive: fully usable on 375px screens. Hamburger menu on mobile.
+
+---
+
+**PAGE STRUCTURE**
+
+**1. NAVBAR**
+- Left: NevrFade logo (SVG or img tag)
+- Center (desktop): Nav links — `Home`, `Collections`, `About`, `Story`
+- Right: `Shop Now` CTA button (black pill button, white text)
+- On scroll: navbar background shifts to `#0D0D0D`, logo inverts if needed
+- Mobile: hamburger icon → full-screen overlay menu (black bg, large white nav links)
+
+---
+
+**2. HERO SECTION**
+- Full viewport height (`100vh`)
+- Background: `#0D0D0D` (dark) with a very subtle grain texture overlay (CSS noise via SVG filter or `background-image: url("data:image/svg+xml...")`)
+- Large centered headline: `NEVRFADE — BUILT DIFFERENT` in Bebas Neue, ~96px desktop / 48px mobile, color `#F5F0EB`
+- Sub-headline below (Inter, 18px, muted beige): *Premium streetwear designed to last — in style, quality, and identity.*
+- CTA Button: `Shop Now` — pill style, background `#F5F0EB`, text `#0D0D0D`, hover: invert
+- Subtle bottom scroll indicator: animated down-arrow or "SCROLL" text in small caps
+
+---
+
+**3. BRAND MANIFESTO STRIP**
+- Full-width horizontal marquee / ticker strip (CSS animation, no JS library)
+- Text: `PREMIUM · MINIMAL · BOLD · TIMELESS · NEVR FADE · BUILT DIFFERENT · QUALITY OVER EVERYTHING ·` repeating
+- Background: `#C8B89A` (warm sand), text `#0D0D0D`, uppercase, 13px tracking wide
+- Runs continuously, pauses on hover
+
+---
+
+**4. ABOUT / MISSION SECTION**
+- Two-column layout (desktop): Left = large editorial text block, Right = brand values list
+- Left side headline (Bebas Neue, 64px): `WE DON'T DO FAST FASHION.`
+- Paragraph (Inter, 16px, line-height 1.8): *NevrFade was created with one vision — build something that doesn't fade with time. Not just clothing, but identity. In a world of fast fashion, we focus on quality, minimal design, and meaning. Every piece represents confidence, individuality, and a mindset that stays strong.*
+- Right side: 3 bold value blocks stacked vertically, each with a number (`01`, `02`, `03`) in small sand color, and value text below:
+  - `01 — Premium Fabric`
+  - `02 — Minimal Design`
+  - `03 — Timeless Identity`
+- Background: `#F5F0EB`
+
+---
+
+**5. COLLECTIONS / PRODUCTS SECTION**
+- Section title (Bebas Neue, 52px, dark): `LIMITED DROPS`
+- Sub-label (Inter, 13px, muted): *Not mass produced. Never repeated.*
+- Product grid: 3 columns desktop / 2 columns tablet / 1 column mobile
+- 3 product cards:
+  1. **Limited Drop Collection** — `SEASON 01`
+  2. **Premium Boxy Fit T-Shirts** — `EVERYDAY ESSENTIAL`
+  3. **Aesthetic Gym Sandos** — `TRAIN DIFFERENT`
+- Each card:
+  - Image placeholder: a clean dark rectangle `aspect-ratio: 3/4` with centered white text showing product name (use CSS only — no external images required yet)
+  - Below image: product name in Bebas Neue (20px), category in Inter (12px, muted), and a minimal `Explore →` text link
+  - Hover: card lifts slightly (`transform: translateY(-6px)`), thin sand-color bottom border appears
+- Background: `#FFFFFF`
+
+---
+
+**6. BRAND STORY SECTION**
+- Full-width dark section (`#0D0D0D`)
+- Left: Large pull-quote in Bebas Neue (72px desktop), light beige text:
+  `"NOT JUST CLOTHING. AN IDENTITY."`
+- Right: Story text in Inter (15px, muted off-white/70% opacity):
+  *NevrFade was created with the vision of building something that doesn't fade with time — not just clothing, but identity. In a world of fast fashion, we focus on quality, minimal design, and meaning. Every piece represents confidence, individuality, and a mindset that stays strong over time.*
+- Below story text: Mission + Vision in two small labeled blocks:
+  - `MISSION —` *To create timeless, high-quality streetwear that empowers individuality and never fades in style or identity.*
+  - `VISION —` *To build a globally recognized streetwear brand known for premium quality, minimal aesthetics, and a strong emotional connection with its community.*
+- Thin horizontal sand-color divider lines between blocks
+
+---
+
+**7. CTA BANNER**
+- Background: `#C8B89A`
+- Centered content: Large text (Bebas Neue, 80px): `NEVER SETTLE.`
+- Below: `Shop the latest drop →` button (dark pill button)
+- Minimal. No other elements.
+
+---
+
+**8. FOOTER**
+- Background: `#0D0D0D`
+- Logo top center
+- 3-column layout: Brand links / Social links / Tagline
+- Social links: Instagram, WhatsApp (icon + label only, no real URLs needed)
+- Bottom bar: `© 2025 NevrFade. All rights reserved.` — small, muted, centered
+- Color: all text in `#F5F0EB` at 60% opacity except active links
+
+---
+
+**INTERACTIONS & ANIMATIONS**
+
+- All sections: fade-in-up on scroll via `IntersectionObserver` (translate Y 30px → 0, opacity 0 → 1, 0.6s ease)
+- Navbar: smooth background transition on scroll (addEventListener scroll + classList toggle)
+- Marquee strip: pure CSS `@keyframes scroll` animation, `animation: marquee 20s linear infinite`
+- Product cards: CSS `transition: transform 0.3s ease`
+- CTA buttons: `transition: background 0.2s, color 0.2s` with hover invert
+- Mobile menu: full-screen overlay with `opacity + pointer-events` toggle via JS
+- No GSAP, no AOS library — all native CSS/JS
+
+---
+
+**CODE QUALITY REQUIREMENTS**
+
+- Semantic HTML5 (`<header>`, `<nav>`, `<main>`, `<section>`, `<footer>`)
+- CSS custom properties (`--color-bg`, `--color-text`, `--font-heading`, etc.) defined in `:root`
+- Mobile-first media queries (`min-width: 768px`, `min-width: 1024px`)
+- No external CSS frameworks (no Bootstrap, no Tailwind)
+- Google Fonts loaded via `<link>` in `<head>`: Bebas Neue + Inter
+- All JS at bottom of `<body>` in a single `<script>` tag
+- Comments only for section markers (e.g. `/* === HERO === */`)
+
+---
+
+Build the complete `index.html` file ready to run in Replit with zero additional setup.
