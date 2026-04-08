@@ -2,11 +2,18 @@ import { motion } from "framer-motion";
 
 export default function Hero() {
   return (
-    <section className="relative h-screen w-full bg-primary overflow-hidden flex items-center justify-center">
-      {/* Noise overlay */}
+    <section className="relative h-screen w-full overflow-hidden flex items-center justify-center">
+      {/* Background image */}
+      <div
+        className="absolute inset-0 bg-center bg-cover bg-no-repeat"
+        style={{ backgroundImage: "url('/hero-bg.png')" }}
+      />
+      {/* Dark gradient overlay — keeps text sharp and premium */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0D0D0D]/80 via-[#0D0D0D]/60 to-[#0D0D0D]/85" />
+      {/* Noise texture overlay */}
       <div className="absolute inset-0 pointer-events-none" style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
-        opacity: 0.15
+        opacity: 0.12
       }} />
       
       <div className="container relative z-10 px-6 md:px-12 flex flex-col items-center text-center">
