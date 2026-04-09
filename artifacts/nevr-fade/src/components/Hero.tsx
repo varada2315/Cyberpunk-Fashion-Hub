@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "wouter";
 
 export default function Hero() {
   return (
@@ -23,7 +24,7 @@ export default function Hero() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="text-primary-foreground font-heading text-6xl md:text-8xl lg:text-[110px] tracking-wide leading-none mb-6 max-w-5xl"
         >
-          NEVRFADE — BUILT DIFFERENT
+          NEVRFADE BUILT DIFFERENT
         </motion.h1>
         
         <motion.p 
@@ -35,15 +36,33 @@ export default function Hero() {
           Premium streetwear designed to last — in style, quality, and identity.
         </motion.p>
         
-        <motion.button
+        <motion.div
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-          className="px-10 py-4 rounded-full font-sans font-medium uppercase tracking-widest transition-all duration-300"
-          style={{ backgroundColor: '#F5F0EB', color: '#0D0D0D', border: '1px solid #F5F0EB' }}
         >
-          Shop Now
-        </motion.button>
+          <Link
+            href="/products"
+            className="px-10 py-4 rounded-full font-sans font-medium uppercase tracking-widest transition-all duration-300"
+            style={{ backgroundColor: '#F5F0EB', color: '#0D0D0D', border: '1px solid #F5F0EB', display: 'inline-block' }}
+          >
+            Shop Now
+          </Link>
+        </motion.div>
+        
+        <motion.div
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
+        >
+          <Link
+            href="/products"
+            className="mt-4 px-10 py-4 rounded-full font-sans font-medium uppercase tracking-widest transition-all duration-300 border border-primary-foreground"
+            style={{ backgroundColor: 'transparent', color: '#F5F0EB', border: '1px solid #F5F0EB', display: 'inline-block' }}
+          >
+            View Products
+          </Link>
+        </motion.div>
       </div>
       
       <motion.div 

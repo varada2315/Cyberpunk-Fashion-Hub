@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cart Functionality Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .product { border: 1px solid #ccc; padding: 15px; margin: 10px 0; }
+        .cart-item { border: 1px solid #eee; padding: 10px; margin: 5px 0; }
+        button { padding: 8px 15px; margin: 5px; cursor: pointer; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Cart Functionality Test</h1>
+    <div id="status">Testing cart functionality...</div>
+    
+    <div class="product">
+        <h3>Test Product 1</h3>
+        <p>Price: $129.99</p>
+        <button onclick="addToCart('Test Product 1', 129.99)">Add to Cart</button>
+    </div>
+    
+    <div class="product">
+        <h3>Test Product 2</h3>
+        <p>Price: $49.99</p>
+        <button onclick="addToCart('Test Product 2', 49.99)">Add to Cart</button>
+    </div>
+    
+    <h2>Cart Items</h2>
+    <div id="cart-items"></div>
+    
+    <button onclick="viewCart()">View Cart</button>
+    <button onclick="clearCart()">Clear Cart</button>
+    
+    <script>
+        // Simulate cart functionality
+        let cart = [];
+        
+        function addToCart(name, price) {
+            // Check if item already exists
+            const existingItem = cart.find(item => item.name === name);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({ name, price, quantity: 1 });
+            }
+            updateCartDisplay();
+            document.getElementById('status').innerHTML = `<span class="success">Added ${name} to cart!</span>`;
+        }
+        
+        function updateCartDisplay() {
+            const cartDiv = document.getElementById('cart-items');
+            if (cart.length === 0) {
+                cartDiv.innerHTML = '<p>Cart is empty</p>';
+                return;
+            }
+            
+            let html = '<ul>';
+            let total = 0;
+            cart.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                html += `<li class="cart-item">
+                    ${item.name} - $${item.price.toFixed(2)} x ${item.quantity} = $${itemTotal.toFixed(2)}
+                    <button onclick="removeFromCart('${item.name}')">Remove</button>
+                </li>`;
+            });
+            html += `<li><strong>Total: $${total.toFixed(2)}</strong></li>`;
+            html += '</ul>';
+            cartDiv.innerHTML = html;
+        }
+        
+        function removeFromCart(name) {
+            cart = cart.filter(item => item.name !== name);
+            updateCartDisplay();
+            document.getElementById('status').innerHTML = `<span class="success">Removed ${name} from cart</span>`;
+        }
+        
+        function viewCart() {
+            if (cart.length === 0) {
+                document.getElementById('status').innerHTML = '<span class="error">Cart is empty!</span>';
+            } else {
+                document.getElementById('status').innerHTML = `<span class="success">Cart has ${cart.length} items</span>`;
+            }
+        }
+        
+        function clearCart() {
+            cart = [];
+            updateCartDisplay();
+            document.getElementById('status').innerHTML = '<span class="success">Cart cleared!</span>';
+        }
+        
+        // Initialize
+        updateCartDisplay();
+    </script>
+</body>
+</html>

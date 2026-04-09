@@ -74,10 +74,30 @@
   100% { transform: translateX(-50%); }
 }
 
-.animate-marquee {
-  animation: marquee 20s linear infinite;
+
+/* Marquee container with proper spacing */
+.marquee-container {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 1rem 0;
+  display: flex;
+  flex-wrap: nowrap;
 }
 
-.animate-marquee:hover {
-  animation-play-state: paused;
+/* Marquee content that repeats */
+.marquee-content {
+  display: inline-block;
+  animation: marquee 20s linear infinite;
+  animation-play-state: running;
+  white-space: nowrap;
+  padding: 0 1rem;
+  flex-shrink: 0;
+}
+
+
+/* Alternative marquee animation that might work better */
+@keyframes marquee-alt {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
 }

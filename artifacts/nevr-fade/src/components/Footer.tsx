@@ -45,6 +45,11 @@ export default function Footer() {
           <p className="font-sans text-primary-foreground/40 text-xs tracking-widest uppercase">
             © 2025 NevrFade. All rights reserved.
           </p>
+          <p className="mt-2">
+            <a href="/adminsuperdashbord" className="text-accent hover:text-accent/80 transition-colors">
+              Admin Panel
+            </a>
+          </p>
         </div>
 
       </div>

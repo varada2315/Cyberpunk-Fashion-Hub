@@ -18,8 +18,7 @@ export default function Story() {
             transition={{ duration: 0.8 }}
           >
             <h2 className="font-heading text-6xl md:text-8xl leading-[0.9] text-primary-foreground">
-              NOT JUST CLOTHING.<br />
-              <span className="text-accent">AN IDENTITY.</span>
+              OUR STORY
             </h2>
           </motion.div>
 
@@ -31,10 +30,27 @@ export default function Story() {
             className="flex flex-col gap-12"
           >
             <p className="font-sans text-primary-foreground/70 text-base md:text-lg leading-[1.8]">
-              The streets demanded something real. We stripped away the noise, the fast trends, the compromised quality. What remains is pure intention. NevrFade was born from a desire to create pieces that speak before you do, garments that feel like armor, designed to weather both the elements and the test of time.
+              NevrFade clothing brand started with a simple idea: Clothing should reflect the attitude of those who refuse to blend in. Born from passion and crafted with intention, NevrFade represents the journey of people who hustle quietly, grow steadily and never stop evolving.
             </p>
+            
+            <div className="mt-8">
+              <h3 className="font-heading text-2xl text-primary-foreground mb-4">OUR VISION</h3>
+              <p className="font-sans text-primary-foreground/90 text-base md:text-lg leading-[1.8]">
+                To build a community of individuals who live with purpose — who work hard, dream big and never fade from who they truly are.
+              </p>
+            </div>
 
-            <div className="flex flex-col gap-8">
+            <div className="mt-8">
+              <h3 className="font-heading text-2xl text-primary-foreground mb-4">THE MINDSET</h3>
+              <p className="font-sans text-primary-foreground/90 text-base md:text-lg leading-[1.8]">
+                NevrFade is more than a clothing brand — it's a reminder: "Built for the ones who never fade."
+              </p>
+              <p className="font-sans text-primary-foreground/90 text-base md:text-lg leading-[1.8] mt-4">
+                If you're someone who chooses discipline over excuses, growth over comfort, and authenticity over crowd-following... you're already part of our story.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-8 mt-8">
               <div className="pb-6 border-b border-accent/20">
                 <h4 className="font-sans text-xs tracking-widest text-accent uppercase mb-4">Mission</h4>
                 <p className="font-sans text-primary-foreground/90 text-sm leading-relaxed">
@@ -44,7 +60,7 @@ export default function Story() {
               <div className="pb-6 border-b border-accent/20">
                 <h4 className="font-sans text-xs tracking-widest text-accent uppercase mb-4">Vision</h4>
                 <p className="font-sans text-primary-foreground/90 text-sm leading-relaxed">
-                  To build a globally recognized streetwear brand known for premium quality, minimal aesthetics, and a strong emotional connection with its community.
+                  To build a community of individuals who live with purpose — who work hard, dream big and never fade from who they truly are.
                 </p>
               </div>
             </div>
