@@ -2,13 +2,19 @@ import { Instagram, MessageCircle } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Footer() {
+  const logoSrc = "/Gemini_Generated_Image_62zv1o62zv1o62zv.png";
+
   return (
     <footer className="bg-primary pt-20 pb-10 w-full">
       <div className="container px-6 md:px-12 mx-auto">
         
         <div className="flex justify-center mb-16">
-          <Link href="/" className="font-heading text-4xl tracking-widest text-primary-foreground">
-            NEVR FADE
+          <Link href="/" className="block">
+            <img
+              src={logoSrc}
+              alt="NevrFade logo"
+              className="h-16 md:h-20 w-auto object-contain"
+            />
           </Link>
         </div>
 

@@ -8,6 +8,7 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { getTotalItems } = useCart();
   const cartCount = getTotalItems();
+  const logoSrc = "/Gemini_Generated_Image_62zv1o62zv1o62zv.png";
 
   const navLinks = [
     { name: "Home", href: "/" },
@@ -22,8 +23,14 @@ export default function Navbar() {
         className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300 bg-primary text-primary-foreground py-4`}
       >
         <div className="container mx-auto px-6 md:px-12 flex justify-between items-center">
-          <div className="text-3xl font-heading tracking-widest z-50 relative">
-            <Link href="/">NEVR FADE</Link>
+          <div className="z-50 relative">
+            <Link href="/" className="block">
+              <img
+                src={logoSrc}
+                alt="NevrFade logo"
+                className="h-12 md:h-14 w-auto object-contain"
+              />
+            </Link>
           </div>
 
           {/* Desktop Nav */}
