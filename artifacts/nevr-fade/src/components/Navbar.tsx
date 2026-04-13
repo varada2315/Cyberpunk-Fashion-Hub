@@ -8,11 +8,12 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { getTotalItems } = useCart();
   const cartCount = getTotalItems();
-  const logoSrc = "/Gemini_Generated_Image_62zv1o62zv1o62zv.png";
+  const logoSrc = "/nvrfadelogofav.png";
 
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Products", href: "/products" },
+    { name: "Blog", href: "/blog" },
     { name: "About", href: "/about" },
     { name: "Story", href: "#story" },
   ];
@@ -20,15 +21,15 @@ export default function Navbar() {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300 bg-primary text-primary-foreground py-4`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300 bg-[#F5F0EB] text-[#0D0D0D] border-b border-[#D9CBB3] py-4`}
       >
         <div className="container mx-auto px-6 md:px-12 flex justify-between items-center">
-          <div className="z-50 relative">
-            <Link href="/" className="block">
+          <div className="z-50 relative w-20 md:w-24 h-12 md:h-14 overflow-visible">
+            <Link href="/" className="block w-full h-full overflow-visible">
               <img
                 src={logoSrc}
                 alt="NevrFade logo"
-                className="h-12 md:h-14 w-auto object-contain"
+                className="h-12 md:h-14 w-auto max-w-none object-contain origin-left scale-[3]"
               />
             </Link>
           </div>

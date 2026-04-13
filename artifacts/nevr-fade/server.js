@@ -3,6 +3,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import crypto from 'crypto';
+import Razorpay from 'razorpay';
+import dotenv from 'dotenv';
+import { initDatabase } from './database/init.js';
+dotenv.config();
+
+// Debug: Log all environment variables
+console.log('All environment variables:', process.env);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -32,6 +39,21 @@ app.use((req, res, next) => {
 const adminSessions = new Map();
 const orders = [];
 
+// Initialize database
+let db;
+initDatabase().then(database => {
+  db = database;
+  console.log('Database initialized successfully');
+}).catch(err => {
+  console.error('Failed to initialize database:', err);
+});
+
+// Initialize Razorpay
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
+
 function getVariantKey(color, size) {
   return `${color}::${size}`;
 }
@@ -55,78 +77,55 @@ function normalizeStockByVariant(stockByVariant, colors, sizes) {
   return normalized;
 }
 
-const products = [
-  {
-    id: 1,
-    title: 'Cyber Jacket',
-    description: 'Premium cyberpunk jacket with neon accents',
-    price: 199.99,
-    category: 'Jackets',
-    image: '/product-1.png',
-    colors: ['#000000', '#FF0000', '#00FF00'],
-    sizes: ['XS', 'S', 'M', 'L', 'XL'],
-    stockByVariant: {}
-  },
-  {
-    id: 2,
-    title: 'Neon Pants',
-    description: 'Stylish neon pants for the urban explorer',
-    price: 129.99,
-    category: 'Pants',
-    image: '/product-2.png',
-    colors: ['#000000', '#0000FF', '#FFFF00'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    stockByVariant: {}
-  },
-  {
-    id: 3,
-    title: 'Hologram Hoodie',
-    description: 'Holographic hoodie with interactive design',
-    price: 179.99,
-    category: 'Hoodies',
-    image: '/product-3.png',
-    colors: ['#000000', '#FF00FF', '#00FFFF'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    stockByVariant: {}
-  }
-];
-
-products.forEach((product) => {
-  product.stockByVariant = normalizeStockByVariant(product.stockByVariant, product.colors, product.sizes);
-});
-
 function sanitizeProduct(payload) {
-  const title = String(payload?.title || '').trim();
+  const name = String(payload?.name || '').trim();
   const description = String(payload?.description || '').trim();
   const category = String(payload?.category || '').trim();
-  const image = String(payload?.image || '').trim();
   const price = Number(payload?.price);
-  const colors = Array.isArray(payload?.colors)
-    ? payload.colors.map((color) => String(color).trim()).filter(Boolean)
-    : [];
-  const sizes = Array.isArray(payload?.sizes)
-    ? payload.sizes.map((size) => String(size).trim()).filter(Boolean)
-    : [];
-  const stockByVariant = normalizeStockByVariant(payload?.stockByVariant, colors, sizes);
+  const salePrice = payload?.salePrice !== undefined ? Number(payload?.salePrice) : null;
+  const sku = String(payload?.sku || '').trim();
+  const variants = Array.isArray(payload?.variants) ? payload.variants : [];
+  const images = Array.isArray(payload?.images) ? payload.images : [];
+  const status = String(payload?.status || 'Publish').trim();
 
-  if (!title || !description || !category || !image) {
-    return { error: 'Title, description, category, and image are required.' };
+  if (!name || !description || !category) {
+    return { error: 'Name, description, and category are required.' };
   }
 
   if (!Number.isFinite(price) || price <= 0) {
     return { error: 'Price must be a number greater than zero.' };
   }
 
+  if (variants.length === 0) {
+    return { error: 'At least one variant is required.' };
+  }
+
+  // Validate that each variant has color, size, and stock
+  for (const variant of variants) {
+    if (!variant.color || !variant.size || variant.stock === undefined || variant.stock === null) {
+      return { error: 'Each variant must have color, size, and stock.' };
+    }
+  }
+
+  // Check that at least one variant has stock > 0
+  const totalStock = variants.reduce((sum, variant) => sum + (Number(variant.stock) || 0), 0);
+  if (totalStock <= 0) {
+    return { error: 'At least one variant must have stock greater than zero.' };
+  }
+
   return {
     product: {
-      title,
+      name,
       description,
       category,
-      image,
       price,
-      colors,
-      sizes,
-      stockByVariant
+      salePrice,
+      sku,
+      variants,
+      images,
+      status,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     }
   };
 }
@@ -147,19 +146,82 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.get('/api/products', (req, res) => {
-  res.json(products);
-});
-
-app.get('/api/products/:id', (req, res) => {
-  const id = parseInt(req.params.id);
-  const product = products.find(p => p.id === id);
-  if (!product) {
-    return res.status(404).json({ error: 'Product not found' });
+// Get all products (public endpoint)
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await db.all('SELECT * FROM products ORDER BY createdAt DESC');
+    res.json(products);
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    res.status(500).json({ error: 'Failed to fetch products' });
   }
-  res.json(product);
 });
 
+// Get a specific product by ID (public endpoint)
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const product = await db.get('SELECT * FROM products WHERE id = ?', id);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json(product);
+  } catch (err) {
+    console.error('Error fetching product:', err);
+    res.status(500).json({ error: 'Failed to fetch product' });
+  }
+});
+
+// Get products with filtering (public endpoint)
+app.get('/api/products/filter', async (req, res) => {
+  try {
+    const { category, search } = req.query;
+    let query = 'SELECT * FROM products';
+    let params = [];
+    
+    if (category) {
+      query += ' WHERE category = ?';
+      params.push(category);
+    }
+    
+    if (search) {
+      const searchTerm = `%${search}%`;
+      if (params.length > 0) {
+        query += ' AND (name LIKE ? OR description LIKE ?)';
+        params.push(searchTerm, searchTerm);
+      } else {
+        query += ' WHERE (name LIKE ? OR description LIKE ?)';
+        params.push(searchTerm, searchTerm);
+      }
+    }
+    
+    query += ' ORDER BY createdAt DESC';
+    
+    const filtered = await db.all(query, params);
+    res.json(filtered);
+  } catch (err) {
+    console.error('Error filtering products:', err);
+    res.status(500).json({ error: 'Failed to filter products' });
+  }
+});
+
+// Get product variants (public endpoint)
+app.get('/api/products/:id/variants', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const product = await db.get('SELECT variants FROM products WHERE id = ?', id);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    const variants = JSON.parse(product.variants);
+    res.json(variants);
+  } catch (err) {
+    console.error('Error fetching product variants:', err);
+    res.status(500).json({ error: 'Failed to fetch product variants' });
+  }
+});
+
+// Admin endpoints
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body || {};
   if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
@@ -175,66 +237,148 @@ app.post('/api/admin/login', (req, res) => {
   res.json({ token });
 });
 
-app.get('/api/admin/products', requireAdminAuth, (req, res) => {
-  res.json(products);
+// Get all products for admin
+app.get('/api/admin/products', requireAdminAuth, async (req, res) => {
+  try {
+    const products = await db.all('SELECT * FROM products ORDER BY createdAt DESC');
+    res.json(products);
+  } catch (err) {
+    console.error('Error fetching admin products:', err);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
 });
 
-app.post('/api/admin/products', requireAdminAuth, (req, res) => {
-  const result = sanitizeProduct(req.body);
-  if (result.error) {
-    return res.status(400).json({ error: result.error });
+// Create a new product (admin only)
+app.post('/api/admin/products', requireAdminAuth, async (req, res) => {
+  try {
+    const result = sanitizeProduct(req.body);
+    if (result.error) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    const product = result.product;
+    
+    // Convert variants to JSON string
+    const variantsJson = JSON.stringify(product.variants);
+    const imagesJson = JSON.stringify(product.images);
+    
+    const { id } = await db.run(
+      'INSERT INTO products (name, description, category, price, salePrice, sku, variants, images, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      product.name,
+      product.description,
+      product.category,
+      product.price,
+      product.salePrice,
+      product.sku,
+      variantsJson,
+      imagesJson,
+      product.status
+    );
+    
+    // Fetch the created product to return it
+    const createdProduct = await db.get('SELECT * FROM products WHERE id = ?', id);
+    res.status(201).json(createdProduct);
+  } catch (err) {
+    console.error('Error creating product:', err);
+    res.status(500).json({ error: 'Failed to create product' });
   }
-
-  const nextId = products.length > 0 ? Math.max(...products.map((p) => p.id)) + 1 : 1;
-  const created = {
-    id: nextId,
-    ...result.product
-  };
-
-  products.push(created);
-  res.status(201).json(created);
 });
 
-app.put('/api/admin/products/:id', requireAdminAuth, (req, res) => {
-  const id = Number(req.params.id);
-  const index = products.findIndex((product) => product.id === id);
+// Update a product (admin only)
+app.put('/api/admin/products/:id', requireAdminAuth, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const result = sanitizeProduct(req.body);
+    if (result.error) {
+      return res.status(400).json({ error: result.error });
+    }
 
-  if (index === -1) {
-    return res.status(404).json({ error: 'Product not found' });
+    const product = result.product;
+    
+    // Convert variants to JSON string
+    const variantsJson = JSON.stringify(product.variants);
+    const imagesJson = JSON.stringify(product.images);
+    
+    await db.run(
+      'UPDATE products SET name = ?, description = ?, category = ?, price = ?, salePrice = ?, sku = ?, variants = ?, images = ?, status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
+      product.name,
+      product.description,
+      product.category,
+      product.price,
+      product.salePrice,
+      product.sku,
+      variantsJson,
+      imagesJson,
+      product.status,
+      id
+    );
+    
+    // Fetch the updated product to return it
+    const updatedProduct = await db.get('SELECT * FROM products WHERE id = ?', id);
+    res.json(updatedProduct);
+  } catch (err) {
+    console.error('Error updating product:', err);
+    res.status(500).json({ error: 'Failed to update product' });
   }
-
-  const result = sanitizeProduct(req.body);
-  if (result.error) {
-    return res.status(400).json({ error: result.error });
-  }
-
-  const updated = {
-    id,
-    ...result.product
-  };
-
-  products[index] = updated;
-  res.json(updated);
 });
 
-app.delete('/api/admin/products/:id', requireAdminAuth, (req, res) => {
-  const id = Number(req.params.id);
-  const index = products.findIndex((product) => product.id === id);
-
-  if (index === -1) {
-    return res.status(404).json({ error: 'Product not found' });
+// Delete a product (admin only)
+app.delete('/api/admin/products/:id', requireAdminAuth, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const result = await db.run('DELETE FROM products WHERE id = ?', id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    res.json({ success: true, removed: { id } });
+  } catch (err) {
+    console.error('Error deleting product:', err);
+    res.status(500).json({ error: 'Failed to delete product' });
   }
-
-  const [removed] = products.splice(index, 1);
-  res.json({ success: true, removed });
 });
 
+// Get orders for admin
 app.get('/api/admin/orders', requireAdminAuth, (req, res) => {
   res.json(orders);
 });
 
-app.post('/api/checkout', (req, res) => {
-  const { items, name, email, address, city, zipCode, cardNumber, expiry, cvv } = req.body;
+// Create Razorpay order endpoint
+app.post('/api/create-order', async (req, res) => {
+  try {
+    const { amount, currency = 'INR', receipt } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        error: 'Invalid amount provided'
+      });
+    }
+
+    const options = {
+      amount: Math.round(amount * 100), // Razorpay expects amount in paise
+      currency: currency,
+      receipt: receipt || `order_${Date.now()}`,
+      payment_capture: 1 // Auto capture payment
+    };
+
+    const order = await razorpay.orders.create(options);
+    
+    res.json({
+      success: true,
+      order: order
+    });
+  } catch (error) {
+    console.error('Razorpay order creation error:', error);
+    res.status(500).json({
+      error: 'Failed to create Razorpay order'
+    });
+  }
+});
+
+// Process checkout
+app.post('/api/checkout', async (req, res) => {
+  const { items, name, email, address, city, zipCode, orderId } = req.body;
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({
@@ -248,12 +392,13 @@ app.post('/api/checkout', (req, res) => {
     });
   }
 
-  if (!cardNumber || !expiry || !cvv) {
+  if (!orderId) {
     return res.status(400).json({
-      error: 'Payment information is required.'
+      error: 'Order ID is required.'
     });
   }
 
+  // Validate that the order exists and matches the cart items
   const orderRecord = {
     id: orders.length + 1,
     orderId: `ORDER-${Date.now()}`,

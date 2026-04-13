@@ -18,19 +18,29 @@ export default function Hero() {
       }} />
       
       <div className="container relative z-10 px-6 md:px-12 flex flex-col items-center text-center">
-        <motion.h1 
-          initial={{ y: 40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="text-primary-foreground font-heading text-6xl md:text-8xl lg:text-[110px] tracking-wide leading-none mb-6 max-w-5xl"
-        >
-          NEVRFADE BUILT DIFFERENT
-        </motion.h1>
+        <div className="mb-6 max-w-5xl">
+          <motion.h1
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="text-primary-foreground font-heading text-6xl md:text-8xl lg:text-[110px] tracking-wide leading-none mb-2"
+          >
+            NEVRFADE
+          </motion.h1>
+          <motion.h1
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+            className="text-primary-foreground font-heading text-6xl md:text-8xl lg:text-[110px] tracking-wide leading-none"
+          >
+            BUILT DIFFERENT
+          </motion.h1>
+        </div>
         
-        <motion.p 
+        <motion.p
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+          transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
           className="text-[#C8B89A] font-sans text-lg md:text-xl max-w-2xl mb-12"
         >
           Premium streetwear designed to last — in style, quality, and identity.

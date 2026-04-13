@@ -1,13 +1,20 @@
 export interface Product {
   id: number;
-  image: string;
-  title: string;
-  category: string;
+  name: string;
   description: string;
+  category: string;
   price: number;
-  colors: string[];
-  sizes: string[];
-  stockByVariant?: Record<string, number>;
+  salePrice?: number;
+  sku?: string;
+  variants: Array<{
+    color: string;
+    size: string;
+    stock: number;
+  }>;
+  images: string[];
+  status: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AdminLoginResponse {
@@ -15,14 +22,19 @@ export interface AdminLoginResponse {
 }
 
 export interface CreateProductInput {
-  image: string;
-  title: string;
-  category: string;
+  name: string;
   description: string;
+  category: string;
   price: number;
-  colors: string[];
-  sizes: string[];
-  stockByVariant: Record<string, number>;
+  salePrice?: number;
+  sku?: string;
+  variants: Array<{
+    color: string;
+    size: string;
+    stock: number;
+  }>;
+  images: string[];
+  status?: string;
 }
 
 async function parseApiResponse<T>(response: Response): Promise<T> {
@@ -47,6 +59,16 @@ export async function fetchProduct(id: number): Promise<Product | null> {
     return null;
   }
   return parseApiResponse<Product>(response);
+}
+
+export async function fetchProductsByCategory(category: string): Promise<Product[]> {
+  const response = await fetch(`/api/products/filter?category=${encodeURIComponent(category)}`);
+  return parseApiResponse<Product[]>(response);
+}
+
+export async function fetchProductsBySearch(search: string): Promise<Product[]> {
+  const response = await fetch(`/api/products/filter?search=${encodeURIComponent(search)}`);
+  return parseApiResponse<Product[]>(response);
 }
 
 export async function adminLogin(username: string, password: string): Promise<AdminLoginResponse> {
@@ -99,9 +121,13 @@ export async function deleteAdminProduct(token: string, productId: number): Prom
   const response = await fetch(`/api/admin/products/${productId}`, {
     method: 'DELETE',
     headers: {
+      'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`
     }
   });
 
-  await parseApiResponse<{ success: boolean }>(response);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || `Failed to delete product with ID ${productId}`);
+  }
 }

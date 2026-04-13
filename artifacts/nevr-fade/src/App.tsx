@@ -9,6 +9,7 @@ import Admin from "@/pages/Admin";
 import Cart from "@/pages/Cart";
 import NotFound from "@/pages/not-found";
 import AboutPage from "@/pages/About";
+import Blog from "@/pages/Blog";
 import { CartProvider } from "@/hooks/useCart";
 
 const queryClient = new QueryClient();
@@ -18,10 +19,13 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/about" component={AboutPage} />
+      <Route path="/blog" component={Blog} />
       <Route path="/products" component={Products} />
       <Route path="/product/:id" component={ProductDetail} />
       <Route path="/cart" component={Cart} />
       <Route path="/adminsuperdashbord" component={Admin} />
+      <Route path="/super-admin-dashboard" component={Admin} />
+      <Route path="/superadmindashboard" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );

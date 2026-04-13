@@ -2,7 +2,7 @@ import { Instagram, MessageCircle } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Footer() {
-  const logoSrc = "/Gemini_Generated_Image_62zv1o62zv1o62zv.png";
+  const logoSrc = "/nvrfadelogofav.png";
 
   return (
     <footer className="bg-primary pt-20 pb-10 w-full">
@@ -52,8 +52,8 @@ export default function Footer() {
             © 2025 NevrFade. All rights reserved.
           </p>
           <p className="mt-2">
-            <a href="/adminsuperdashbord" className="text-accent hover:text-accent/80 transition-colors">
-              Admin Panel
+            <a href="/super-admin-dashboard" className="text-accent hover:text-accent/80 transition-colors">
+              Super Admin Dashboard
             </a>
           </p>
         </div>

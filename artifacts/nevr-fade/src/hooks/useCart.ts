@@ -6,6 +6,7 @@ import {
   createElement,
   type ReactNode,
 } from "react";
+import { getVariantStock } from "@/lib/stock";
 
 interface CartItem {
   product: any;
@@ -14,7 +15,7 @@ interface CartItem {
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (product: any) => void;
+  addToCart: (product: any) => boolean;
   removeFromCart: (productId: number, selectedColor?: string, selectedSize?: string) => void;
   updateQuantity: (productId: number, quantity: number, selectedColor?: string, selectedSize?: string) => void;
   clearCart: () => void;
@@ -37,6 +38,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const getVariantKey = (product: any) =>
     `${product.id}::${product.selectedColor ?? ""}::${product.selectedSize ?? ""}`;
+  const getSelectedVariantStock = (product: any) =>
+    getVariantStock(product, product.selectedColor ?? null, product.selectedSize ?? null);
 
   // Load cart from localStorage on initial render
   useEffect(() => {
@@ -63,19 +66,31 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [cartItems]);
 
   const addToCart = (product: any) => {
+    let wasAdded = false;
     setCartItems(prev => {
+      const stockLimit = getSelectedVariantStock(product);
+      if (stockLimit !== null && stockLimit <= 0) {
+        return prev;
+      }
+
       const newVariantKey = getVariantKey(product);
       const existingItem = prev.find(item => getVariantKey(item.product) === newVariantKey);
       if (existingItem) {
+        if (stockLimit !== null && existingItem.quantity >= stockLimit) {
+          return prev;
+        }
+        wasAdded = true;
         return prev.map(item => 
           getVariantKey(item.product) === newVariantKey
             ? { ...item, quantity: item.quantity + 1 } 
             : item
         );
       } else {
+        wasAdded = true;
         return [...prev, { product, quantity: 1 }];
       }
     });
+    return wasAdded;
   };
 
   const removeFromCart = (productId: number, selectedColor?: string, selectedSize?: string) => {
@@ -89,7 +104,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCartItems(prev => 
       prev.map(item => 
         getVariantKey(item.product) === targetVariantKey
-          ? { ...item, quantity } 
+          ? (() => {
+              const stockLimit = getSelectedVariantStock(item.product);
+              const safeQuantity = Number.isFinite(quantity) ? Math.floor(quantity) : 1;
+              const normalized = Math.max(1, safeQuantity);
+              if (stockLimit !== null) {
+                if (stockLimit < 1) return item;
+                return { ...item, quantity: Math.min(normalized, stockLimit) };
+              }
+              return { ...item, quantity: normalized };
+            })()
           : item
       )
     );

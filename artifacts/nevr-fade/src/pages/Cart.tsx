@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import { useCart } from "@/hooks/useCart";
+import { formatINR } from "@/lib/currency";
+import { getVariantStock } from "@/lib/stock";
 
 export default function Cart() {
   const { cartItems, removeFromCart, updateQuantity, getTotalPrice, getTotalItems, clearCart } = useCart();
@@ -11,16 +13,40 @@ export default function Cart() {
     address: "",
     city: "",
     zipCode: "",
-    cardNumber: "",
-    expiry: "",
-    cvv: ""
+    phone: "",
+    country: "India",
+    state: ""
   });
+  const [razorpayOrderId, setRazorpayOrderId] = useState<string | null>(null);
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // In a real app, this would submit to a backend API
+    // First, create a Razorpay order
     try {
+      const totalAmount = getTotalPrice() * 1.08; // Including 8% tax
+      
+      const orderResponse = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: totalAmount,
+          receipt: `order_${Date.now()}`
+        })
+      });
+      
+      const orderResult = await orderResponse.json();
+      
+      if (!orderResult.success) {
+        throw new Error(orderResult.error || 'Failed to create order');
+      }
+      
+      // Store the order ID for later use
+      setRazorpayOrderId(orderResult.order.id);
+      
+      // Now proceed with the checkout
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
@@ -28,15 +54,37 @@ export default function Cart() {
         },
         body: JSON.stringify({
           items: cartItems,
-          ...checkoutForm
+          ...checkoutForm,
+          orderId: orderResult.order.id
         })
       });
       
       if (response.ok) {
         const result = await response.json();
-        alert("Order placed successfully! Thank you for your purchase.");
-        clearCart();
-        setIsCheckout(false);
+        
+        // Initialize Razorpay payment
+        const razorpay = new (window as any).Razorpay({
+          key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+          amount: Math.round(totalAmount * 100), // Amount in paise
+          currency: "INR",
+          order_id: orderResult.order.id,
+          handler: function (response: any) {
+            // Payment successful
+            alert("Payment successful! Order placed successfully! Thank you for your purchase.");
+            clearCart();
+            setIsCheckout(false);
+          },
+          prefill: {
+            name: checkoutForm.name,
+            email: checkoutForm.email,
+            contact: checkoutForm.phone
+          },
+          theme: {
+            color: "#F5F0EB"
+          }
+        });
+        
+        razorpay.open();
       } else {
         const error = await response.json();
         alert(`Error: ${error.error || error.message || 'Failed to process order'}`);
@@ -47,7 +95,7 @@ export default function Cart() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setCheckoutForm(prev => ({ ...prev, [name]: value }));
   };
@@ -90,7 +138,6 @@ export default function Cart() {
                     value={checkoutForm.name}
                     onChange={handleInputChange}
                     className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                    placeholder="John Doe"
                     required
                   />
                 </div>
@@ -103,7 +150,18 @@ export default function Cart() {
                     value={checkoutForm.email}
                     onChange={handleInputChange}
                     className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                    placeholder="john@example.com"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">Phone Number</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={checkoutForm.phone}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
                     required
                   />
                 </div>
@@ -116,7 +174,6 @@ export default function Cart() {
                     value={checkoutForm.address}
                     onChange={handleInputChange}
                     className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                    placeholder="123 Main Street"
                     required
                   />
                 </div>
@@ -130,11 +187,24 @@ export default function Cart() {
                       value={checkoutForm.city}
                       onChange={handleInputChange}
                       className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                      placeholder="New York"
                       required
                     />
                   </div>
                   
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-2">State</label>
+                    <input
+                      type="text"
+                      name="state"
+                      value={checkoutForm.state}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-muted-foreground mb-2">ZIP Code</label>
                     <input
@@ -143,56 +213,32 @@ export default function Cart() {
                       value={checkoutForm.zipCode}
                       onChange={handleInputChange}
                       className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                      placeholder="10001"
                       required
                     />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-2">Country</label>
+                    <select
+                      name="country"
+                      value={checkoutForm.country}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
+                      required
+                    >
+                      <option value="India">India</option>
+                    </select>
                   </div>
                 </div>
               </div>
             </div>
             
             <div>
-              <h2 className="font-heading text-2xl text-foreground mb-6">Payment Information</h2>
+              <h2 className="font-heading text-2xl text-foreground mb-6">Razorpay Payment</h2>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">Card Number</label>
-                  <input
-                    type="text"
-                    name="cardNumber"
-                    value={checkoutForm.cardNumber}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                    placeholder="1234 5678 9012 3456"
-                    required
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-2">Expiry Date</label>
-                    <input
-                      type="text"
-                      name="expiry"
-                      value={checkoutForm.expiry}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                      placeholder="MM/YY"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-2">CVV</label>
-                    <input
-                      type="text"
-                      name="cvv"
-                      value={checkoutForm.cvv}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                      placeholder="123"
-                      required
-                    />
-                  </div>
+                <div className="bg-secondary p-4 rounded-lg">
+                  <p className="text-muted-foreground mb-2">You will be redirected to Razorpay to complete your payment securely.</p>
+                  <p className="text-sm text-muted-foreground">Total amount: {formatINR(getTotalPrice() * 1.08)}</p>
                 </div>
                 
                 <div className="pt-6">
@@ -200,7 +246,7 @@ export default function Cart() {
                     type="submit"
                     className="w-full px-6 py-3 rounded-full text-lg font-medium tracking-wide uppercase transition-colors bg-[#F5F0EB] text-[#0D0D0D] hover:bg-[#C8B89A]"
                   >
-                    Place Order
+                    Proceed to Razorpay
                   </button>
                 </div>
               </div>

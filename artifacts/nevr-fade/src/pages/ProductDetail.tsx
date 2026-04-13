@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import { useState, useEffect } from "react";
 import { useCart } from "@/hooks/useCart";
+import { formatINR } from "@/lib/currency";
+import { findFirstAvailableVariant, getVariantStock } from "@/lib/stock";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -13,13 +15,20 @@ export default function ProductDetail() {
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const { addToCart } = useCart();
+  const selectedVariantStock = getVariantStock(product, selectedColor, selectedSize);
+  const isOutOfStock = selectedVariantStock !== null && selectedVariantStock <= 0;
+  const canAddToCart = Boolean(selectedColor && selectedSize) && !isOutOfStock;
 
   const handleAddToCart = (item: any) => {
-    addToCart({
+    if (!canAddToCart) return;
+
+    const addedToCart = addToCart({
       ...item,
       selectedColor,
       selectedSize,
     });
+    if (!addedToCart) return;
+
     setAdded(true);
     setTimeout(() => setAdded(false), 1200);
   };
@@ -45,9 +54,32 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!product) return;
 
+    const availableVariant = findFirstAvailableVariant(product);
+    if (availableVariant) {
+      setSelectedColor(availableVariant.color);
+      setSelectedSize(availableVariant.size);
+      return;
+    }
+
     setSelectedColor(product.colors?.[0] ?? null);
     setSelectedSize(product.sizes?.[0] ?? null);
   }, [product]);
+
+  useEffect(() => {
+    if (!product || !selectedColor || !Array.isArray(product.sizes) || product.sizes.length === 0) return;
+
+    const activeSizeIsAvailable =
+      selectedSize && (getVariantStock(product, selectedColor, selectedSize) ?? 1) > 0;
+    if (activeSizeIsAvailable) return;
+
+    const firstAvailableSizeForColor =
+      product.sizes.find((size: string) => (getVariantStock(product, selectedColor, size) ?? 1) > 0) ??
+      product.sizes[0] ??
+      null;
+    if (firstAvailableSizeForColor !== selectedSize) {
+      setSelectedSize(firstAvailableSizeForColor);
+    }
+  }, [product, selectedColor, selectedSize]);
 
   if (loading) {
     return (
@@ -77,7 +109,7 @@ export default function ProductDetail() {
   return (
     <main className="min-h-screen bg-background w-full overflow-hidden">
       <Navbar />
-      <div className="container mx-auto px-6 md:px-12 py-16">
+      <div className="container mx-auto px-6 md:px-12 py-16 pt-24">
         <motion.div 
           initial={{ y: 40, opacity: 0 }}
           whileInView={{ y: 0, opacity: 1 }}
@@ -119,20 +151,21 @@ export default function ProductDetail() {
               <p className="font-sans text-lg text-muted-foreground mb-6">{product.description}</p>
               
               <div className="flex items-center mb-8">
-                <span className="font-heading text-3xl text-foreground">${product.price.toFixed(2)}</span>
+                <span className="font-heading text-3xl text-foreground">{formatINR(product.price)}</span>
               </div>
 
                <div className="flex gap-4 mt-6">
                  <button 
                     type="button"
+                    disabled={!canAddToCart}
                     onClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
                       handleAddToCart(product);
                     }}
-                    className="relative z-10 pointer-events-auto px-8 py-4 rounded-full text-lg font-medium tracking-wide uppercase transition-colors bg-[#F5F0EB] text-[#0D0D0D] hover:bg-[#C8B89A]"
+                    className="relative z-10 pointer-events-auto px-8 py-4 rounded-full text-lg font-medium tracking-wide uppercase transition-colors bg-[#F5F0EB] text-[#0D0D0D] hover:bg-[#C8B89A] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {added ? "Added" : "Add to Cart"}
+                    {isOutOfStock ? "Out of Stock" : added ? "Added" : "Add to Cart"}
                   </button>
                  <button className="px-8 py-4 rounded-full text-lg font-medium tracking-wide uppercase transition-colors border border-primary text-primary hover:bg-primary hover:text-primary-foreground">
                    Buy Now
@@ -168,23 +201,37 @@ export default function ProductDetail() {
                  <h3 className="font-heading text-xl text-foreground mb-4">Sizes</h3>
                  <div className="flex flex-wrap gap-3">
                    {product.sizes.map((size: string, index: number) => (
-                     <button
-                       type="button"
-                       key={index} 
-                       onClick={() => setSelectedSize(size)}
-                       aria-pressed={selectedSize === size}
-                       className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                         selectedSize === size
-                           ? "bg-primary text-primary-foreground border border-primary"
-                           : "border border-primary/30 hover:border-primary/60"
-                       }`}
-                     >
-                       {size}
-                     </button>
+                     (() => {
+                       const sizeStock = getVariantStock(product, selectedColor, size);
+                       const sizeOutOfStock = sizeStock !== null && sizeStock <= 0;
+
+                       return (
+                      <button
+                        type="button"
+                        key={index} 
+                        disabled={sizeOutOfStock}
+                        onClick={() => setSelectedSize(size)}
+                        aria-pressed={selectedSize === size}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          selectedSize === size
+                            ? "bg-primary text-primary-foreground border border-primary"
+                            : "border border-primary/30 hover:border-primary/60"
+                        }`}
+                      >
+                        {size}
+                        {sizeStock !== null ? ` (${sizeStock})` : ""}
+                      </button>
+                       );
+                     })()
                    ))}
                  </div>
                  {selectedSize && (
                    <p className="mt-3 text-sm text-muted-foreground">Selected: {selectedSize}</p>
+                 )}
+                 {selectedVariantStock !== null && (
+                   <p className={`mt-2 text-sm ${isOutOfStock ? "text-red-500" : "text-muted-foreground"}`}>
+                     Stock for selected variant: {selectedVariantStock}
+                   </p>
                  )}
                </div>
             </div>
