@@ -8,7 +8,7 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { getTotalItems } = useCart();
   const cartCount = getTotalItems();
-  const logoSrc = "/nvrfadelogofav.png";
+  const logoSrc = "/NEVR FADE logo design.png";
 
   const navLinks = [
     { name: "Home", href: "/" },
@@ -21,7 +21,7 @@ export default function Navbar() {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300 bg-[#F5F0EB] text-[#0D0D0D] border-b border-[#D9CBB3] py-4`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300 bg-black text-white border-b border-[#333333] py-4`}
       >
         <div className="container mx-auto px-6 md:px-12 flex justify-between items-center">
           <div className="z-50 relative w-20 md:w-24 h-12 md:h-14 overflow-visible">
@@ -48,10 +48,10 @@ export default function Navbar() {
           </nav>
 
           <div className="hidden md:flex gap-4 items-center">
-            <Link href="/products" className="px-6 py-2 rounded-full text-sm font-medium tracking-wide uppercase transition-colors bg-[#F5F0EB] text-[#0D0D0D] hover:bg-[#C8B89A]">
+            <Link href="/products" className="px-6 py-2 rounded-full text-sm font-medium tracking-wide uppercase transition-colors bg-white text-black hover:bg-[#C8B89A] hover:text-white">
               Shop Now
             </Link>
-            <Link href="/cart" className="relative px-6 py-2 rounded-full text-sm font-medium tracking-wide uppercase transition-colors bg-[#F5F0EB] text-[#0D0D0D] hover:bg-[#C8B89A]">
+            <Link href="/cart" className="relative px-6 py-2 rounded-full text-sm font-medium tracking-wide uppercase transition-colors bg-white text-black hover:bg-[#C8B89A] hover:text-white">
               Cart
               <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
                 {cartCount}
