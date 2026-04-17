@@ -8,7 +8,7 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { getTotalItems } = useCart();
   const cartCount = getTotalItems();
-  const logoSrc = "/NEVR FADE logo design.png";
+  const logoSrc = "/Never fade in bold contrast.png";
 
   const navLinks = [
     { name: "Home", href: "/" },

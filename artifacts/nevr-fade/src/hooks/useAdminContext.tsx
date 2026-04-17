@@ -10,6 +10,8 @@ interface AdminContextType {
   createProduct: (product: any) => Promise<any>;
   updateProduct: (id: number, product: any) => Promise<any>;
   deleteProduct: (id: number) => Promise<void>;
+  orders: any[];
+  fetchOrders: () => Promise<void>;
   loading: boolean;
   error: string | null;
 }
@@ -27,6 +29,7 @@ export function useAdminContext() {
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -115,6 +118,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const fetchOrders = async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const { fetchAdminOrders } = await import('@/lib/products');
+      const fetchedOrders = await fetchAdminOrders(token);
+      setOrders(fetchedOrders);
+    } catch (err) {
+      setError('Failed to fetch orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AdminContext.Provider value={{
       isAuthenticated,
@@ -125,6 +142,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       createProduct,
       updateProduct,
       deleteProduct,
+      orders,
+      fetchOrders,
       loading,
       error
     }}>

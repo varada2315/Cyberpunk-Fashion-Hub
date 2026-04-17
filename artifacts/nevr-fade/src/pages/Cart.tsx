@@ -7,6 +7,7 @@ import { getVariantStock } from "@/lib/stock";
 export default function Cart() {
   const { cartItems, removeFromCart, updateQuantity, getTotalPrice, getTotalItems, clearCart } = useCart();
   const [isCheckout, setIsCheckout] = useState(false);
+  const [isPaymentSuccess, setIsPaymentSuccess] = useState(false);
   const [checkoutForm, setCheckoutForm] = useState({
     name: "",
     email: "",
@@ -70,9 +71,17 @@ export default function Cart() {
           order_id: orderResult.order.id,
           handler: function (response: any) {
             // Payment successful
-            alert("Payment successful! Order placed successfully! Thank you for your purchase.");
+            setIsPaymentSuccess(true);
             clearCart();
             setIsCheckout(false);
+            
+            // Redirect to WhatsApp after 3 seconds
+            setTimeout(() => {
+              const phoneNumber = "+916005613616"; // Remove spaces and + for URL
+              const message = `Hello, I've successfully made a payment for my order. Please proceed with the delivery.`;
+              const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+              window.open(whatsappUrl, '_blank');
+            }, 3000);
           },
           prefill: {
             name: checkoutForm.name,
@@ -120,142 +129,166 @@ export default function Cart() {
   }
 
   if (isCheckout) {
-    return (
-      <main className="min-h-screen bg-background w-full overflow-hidden">
-        <Navbar />
-        <div className="container mx-auto px-6 md:px-12 py-16">
-          <h1 className="font-heading text-4xl text-foreground mb-8">Checkout</h1>
-          
-          <form onSubmit={handleCheckout} className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            <div>
-              <h2 className="font-heading text-2xl text-foreground mb-6">Shipping Information</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">Full Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={checkoutForm.name}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={checkoutForm.email}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">Phone Number</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={checkoutForm.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">Address</label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={checkoutForm.address}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                    required
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-2">City</label>
-                    <input
-                      type="text"
-                      name="city"
-                      value={checkoutForm.city}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-2">State</label>
-                    <input
-                      type="text"
-                      name="state"
-                      value={checkoutForm.state}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-2">ZIP Code</label>
-                    <input
-                      type="text"
-                      name="zipCode"
-                      value={checkoutForm.zipCode}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-2">Country</label>
-                    <select
-                      name="country"
-                      value={checkoutForm.country}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
-                      required
-                    >
-                      <option value="India">India</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <h2 className="font-heading text-2xl text-foreground mb-6">Razorpay Payment</h2>
-              <div className="space-y-4">
-                <div className="bg-secondary p-4 rounded-lg">
-                  <p className="text-muted-foreground mb-2">You will be redirected to Razorpay to complete your payment securely.</p>
-                  <p className="text-sm text-muted-foreground">Total amount: {formatINR(getTotalPrice() * 1.08)}</p>
-                </div>
-                
-                <div className="pt-6">
-                  <button
-                    type="submit"
-                    className="w-full px-6 py-3 rounded-full text-lg font-medium tracking-wide uppercase transition-colors bg-[#F5F0EB] text-[#0D0D0D] hover:bg-[#C8B89A]"
-                  >
-                    Proceed to Razorpay
-                  </button>
-                </div>
-              </div>
-            </div>
-          </form>
-        </div>
-      </main>
-    );
-  }
+   return (
+     <main className="min-h-screen bg-background w-full overflow-hidden">
+       <Navbar />
+       <div className="container mx-auto px-6 md:px-12 py-16">
+         <h1 className="font-heading text-4xl text-foreground mb-8">Checkout</h1>
+         
+         {isPaymentSuccess ? (
+           <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
+             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+               </svg>
+             </div>
+             <h3 className="text-2xl font-bold text-green-800 mb-2">Payment Successful!</h3>
+             <p className="text-green-700 mb-6">Thank you for your purchase. Your order has been confirmed.</p>
+             <p className="text-sm text-green-600 mb-6">You will be redirected to WhatsApp in 3 seconds...</p>
+             <button
+               onClick={() => {
+                 const phoneNumber = "+916005613616";
+                 const message = `Hello, I've successfully made a payment for my order. Please proceed with the delivery.`;
+                 const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+                 window.open(whatsappUrl, '_blank');
+               }}
+               className="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
+             >
+               Open WhatsApp Now
+             </button>
+           </div>
+         ) : (
+           <form onSubmit={handleCheckout} className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+             <div>
+               <h2 className="font-heading text-2xl text-foreground mb-6">Shipping Information</h2>
+               <div className="space-y-4">
+                 <div>
+                   <label className="block text-sm font-medium text-muted-foreground mb-2">Full Name</label>
+                   <input
+                     type="text"
+                     name="name"
+                     value={checkoutForm.name}
+                     onChange={handleInputChange}
+                     className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
+                     required
+                   />
+                 </div>
+                 
+                 <div>
+                   <label className="block text-sm font-medium text-muted-foreground mb-2">Email</label>
+                   <input
+                     type="email"
+                     name="email"
+                     value={checkoutForm.email}
+                     onChange={handleInputChange}
+                     className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
+                     required
+                   />
+                 </div>
+                 
+                 <div>
+                   <label className="block text-sm font-medium text-muted-foreground mb-2">Phone Number</label>
+                   <input
+                     type="tel"
+                     name="phone"
+                     value={checkoutForm.phone}
+                     onChange={handleInputChange}
+                     className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
+                     required
+                   />
+                 </div>
+                 
+                 <div>
+                   <label className="block text-sm font-medium text-muted-foreground mb-2">Address</label>
+                   <input
+                     type="text"
+                     name="address"
+                     value={checkoutForm.address}
+                     onChange={handleInputChange}
+                     className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
+                     required
+                   />
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-sm font-medium text-muted-foreground mb-2">City</label>
+                     <input
+                       type="text"
+                       name="city"
+                       value={checkoutForm.city}
+                       onChange={handleInputChange}
+                       className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
+                       required
+                     />
+                   </div>
+                   
+                   <div>
+                     <label className="block text-sm font-medium text-muted-foreground mb-2">State</label>
+                     <input
+                       type="text"
+                       name="state"
+                       value={checkoutForm.state}
+                       onChange={handleInputChange}
+                       className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
+                       required
+                     />
+                   </div>
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-sm font-medium text-muted-foreground mb-2">ZIP Code</label>
+                     <input
+                       type="text"
+                       name="zipCode"
+                       value={checkoutForm.zipCode}
+                       onChange={handleInputChange}
+                       className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
+                       required
+                     />
+                   </div>
+                   
+                   <div>
+                     <label className="block text-sm font-medium text-muted-foreground mb-2">Country</label>
+                     <select
+                       name="country"
+                       value={checkoutForm.country}
+                       onChange={handleInputChange}
+                       className="w-full px-4 py-2 rounded-lg border border-primary/30 bg-background text-foreground"
+                       required
+                     >
+                       <option value="India">India</option>
+                     </select>
+                   </div>
+                 </div>
+               </div>
+             </div>
+             
+             <div>
+               <h2 className="font-heading text-2xl text-foreground mb-6">Razorpay Payment</h2>
+               <div className="space-y-4">
+                 <div className="bg-secondary p-4 rounded-lg">
+                   <p className="text-muted-foreground mb-2">You will be redirected to Razorpay to complete your payment securely.</p>
+                   <p className="text-sm text-muted-foreground">Total amount: {formatINR(getTotalPrice() * 1.08)}</p>
+                 </div>
+                 
+                 <div className="pt-6">
+                   <button
+                     type="submit"
+                     className="w-full px-6 py-3 rounded-full text-lg font-medium tracking-wide uppercase transition-colors bg-[#F5F0EB] text-[#0D0D0D] hover:bg-[#C8B89A]"
+                   >
+                     Proceed to Razorpay
+                   </button>
+                 </div>
+               </div>
+             </div>
+           </form>
+         )}
+       </div>
+     </main>
+   );
+ }
 
   return (
     <main className="min-h-screen bg-background w-full overflow-hidden">
@@ -283,7 +316,7 @@ export default function Cart() {
                         {product.selectedSize ? `Size: ${product.selectedSize}` : ""}
                       </p>
                     )}
-                    <p className="font-heading text-lg text-foreground mt-2">${product.price.toFixed(2)} each</p>
+                    <p className="font-heading text-lg text-foreground mt-2">{formatINR(product.price)} each</p>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
@@ -316,7 +349,7 @@ export default function Cart() {
                       </button>
                     </div>
                     <span className="font-heading text-lg text-foreground">
-                      ${(product.price * quantity).toFixed(2)}
+                      {formatINR(product.price * quantity)}
                     </span>
                     <button 
                       onClick={() =>
@@ -338,7 +371,7 @@ export default function Cart() {
             <div className="space-y-4 mb-8">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-heading">${getTotalPrice().toFixed(2)}</span>
+                <span className="font-heading">{formatINR(getTotalPrice())}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shipping</span>
@@ -346,12 +379,12 @@ export default function Cart() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tax</span>
-                <span className="font-heading">${(getTotalPrice() * 0.08).toFixed(2)}</span>
+                <span className="font-heading">{formatINR(getTotalPrice() * 0.08)}</span>
               </div>
               <div className="border-t border-primary/30 pt-4 flex justify-between">
                 <span className="font-heading text-lg text-foreground">Total</span>
                 <span className="font-heading text-lg text-foreground">
-                  ${(getTotalPrice() * 1.08).toFixed(2)}
+                  {formatINR(getTotalPrice() * 1.08)}
                 </span>
               </div>
             </div>

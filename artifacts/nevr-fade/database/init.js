@@ -54,6 +54,7 @@ export async function initDatabase() {
       zipCode TEXT NOT NULL,
       items TEXT NOT NULL, -- JSON string of items
       amount REAL NOT NULL,
+      status TEXT DEFAULT 'pending',
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);

@@ -11,6 +11,7 @@ import NotFound from "@/pages/not-found";
 import AboutPage from "@/pages/About";
 import Blog from "@/pages/Blog";
 import { CartProvider } from "@/hooks/useCart";
+import { AdminProvider } from "@/hooks/useAdminContext";
 
 const queryClient = new QueryClient();
 
@@ -34,14 +35,16 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <CartProvider>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
-      </CartProvider>
+      <AdminProvider>
+        <CartProvider>
+          <TooltipProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </CartProvider>
+      </AdminProvider>
     </QueryClientProvider>
   );
 }

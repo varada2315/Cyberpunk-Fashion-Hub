@@ -5,15 +5,13 @@ import Navbar from "@/components/Navbar";
 import { useState, useEffect } from "react";
 import { useCart } from "@/hooks/useCart";
 import { formatINR } from "@/lib/currency";
-import { findFirstAvailableVariant, getTotalVariantStock } from "@/lib/stock";
-import { useAdminContext } from "@/hooks/useAdminContext";
+import { getTotalVariantStock, findFirstAvailableVariant } from "@/lib/stock";
 
 export default function Products() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [addedProductId, setAddedProductId] = useState<number | null>(null);
   const { addToCart } = useCart();
-  const { products: adminProducts, fetchProducts: fetchAdminProducts } = useAdminContext();
 
   const handleAddToCart = (product: any) => {
     const variant = findFirstAvailableVariant(product);
@@ -45,10 +43,13 @@ export default function Products() {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        // First try to fetch from admin context if available
-        // If not, fall back to public API
         const fetchedProducts = await fetchProducts();
-        setProducts(fetchedProducts);
+        if (Array.isArray(fetchedProducts)) {
+          setProducts(fetchedProducts);
+        } else {
+          console.error("API did not return an array:", fetchedProducts);
+          setProducts([]);
+        }
       } catch (error) {
         console.error("Failed to load products:", error);
         setProducts([]);

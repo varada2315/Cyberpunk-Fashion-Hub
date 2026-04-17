@@ -1,20 +1,23 @@
 export interface Product {
   id: number;
   name: string;
+  title: string;
   description: string;
   category: string;
   price: number;
   salePrice?: number;
   sku?: string;
-  variants: Array<{
-    color: string;
-    size: string;
-    stock: number;
-  }>;
-  images: string[];
+  variants?: any;
+  images?: string[];
+  image?: string;
   status: string;
   createdAt: string;
   updatedAt: string;
+  colors?: string[];
+  sizes?: string[];
+  stockByVariant?: Record<string, number>;
+  selectedColor?: string | null;
+  selectedSize?: string | null;
 }
 
 export interface AdminLoginResponse {
@@ -98,7 +101,11 @@ export async function createAdminProduct(token: string, payload: CreateProductIn
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify({
+      ...payload,
+      variants: payload.variants || [],
+      images: payload.images || []
+    })
   });
 
   return parseApiResponse<Product>(response);
@@ -111,7 +118,11 @@ export async function updateAdminProduct(token: string, productId: number, paylo
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify({
+      ...payload,
+      variants: payload.variants || [],
+      images: payload.images || []
+    })
   });
 
   return parseApiResponse<Product>(response);
@@ -130,4 +141,27 @@ export async function deleteAdminProduct(token: string, productId: number): Prom
     const error = await response.json().catch(() => ({}));
     throw new Error(error.error || `Failed to delete product with ID ${productId}`);
   }
+}
+
+export interface Order {
+  id: number;
+  orderId: string;
+  name: string;
+  email: string;
+  address: string;
+  city: string;
+  zipCode: string;
+  items: any[];
+  amount: number;
+  createdAt: string;
+}
+
+export async function fetchAdminOrders(token: string): Promise<Order[]> {
+  const response = await fetch('/api/admin/orders', {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  return parseApiResponse<Order[]>(response);
 }
