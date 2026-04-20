@@ -17,7 +17,7 @@ When we started this journey, we wanted a name that reflected our identity — c
 In a world full of 'NeverFade' clones, we chose NevrFade to stand for the individuals who don't need to shout to be heard. It's about being original in a copy-paste world. So whether you found us by accident or by intention, you're exactly where you need to be. Welcome to the hub of premium streetwear that truly never fades.`,
     date: "2026-04-18",
     author: "NevrFade Team",
-    image: "/hero-bg.png",
+    image: "/1776701193808.png",
     category: "Identity"
   },
   {
@@ -33,7 +33,7 @@ NevrFade was born for the hustlers. The ones who are in the gym at 5 AM. The one
 Our clothing isn't just fabric; it's a uniform for your ambition. When you wear a NevrFade piece, it's a reminder to yourself and the world that you are built different. You are committed to growth, discipline, and remaining authentic to who you truly are. You don't blend in because you weren't meant to. You rise.`,
     date: "2026-04-15",
     author: "Founders Circle",
-    image: "/product-1.png",
+    image: "/1776701071862.png",
     category: "Mindset"
   },
   {
@@ -53,7 +53,7 @@ As a premium clothing brand based in India, we obsess over three things: Detail,
 Made in India with a global mindset, NevrFade is built to last — in style, quality, and identity.`,
     date: "2026-04-12",
     author: "Design Lead",
-    image: "/product-2.png",
+    image: "/1776696793600 (1).png",
     category: "Quality"
   },
   {
@@ -74,7 +74,7 @@ Our latest drops focus on:
 Stop chasing the next big thing and start building a wardrobe that reflects your consistency. Choose the pieces that never fade.`,
     date: "2026-04-09",
     author: "Style Editor",
-    image: "/hero-bg.png",
+    image: "/1776701193808.png",
     category: "Style"
   }
 ];

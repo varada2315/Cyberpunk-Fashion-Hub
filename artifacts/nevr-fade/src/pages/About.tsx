@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import About from "@/components/About";
 import Story from "@/components/Story";
 import { motion } from "framer-motion";
+import { Instagram } from "lucide-react";
 
 export default function AboutPage() {
   return (
@@ -60,6 +61,28 @@ export default function AboutPage() {
               <p className="font-sans text-foreground/80 text-base md:text-lg leading-relaxed mt-4">
                 If you're someone who chooses discipline over excuses, growth over comfort, and authenticity over crowd-following... you're already part of our story.
               </p>
+
+              <h2 className="font-heading text-3xl text-foreground mt-12 mb-6 uppercase tracking-tighter">Founder</h2>
+              <div className="bg-card border border-border p-8 rounded-3xl mt-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div>
+                    <h3 className="font-heading text-2xl text-foreground mb-1">Nikhil Manhas</h3>
+                    <p className="font-sans text-muted-foreground uppercase tracking-widest text-xs font-bold mb-4">Founder of NevrFade</p>
+                    <p className="font-sans text-foreground/70 text-sm leading-relaxed max-w-md">
+                      Driven by the vision to create a brand that stays real in a world of copies. Nikhil established NevrFade to empower individuals through premium design and a consistent mindset.
+                    </p>
+                  </div>
+                  <a 
+                    href="https://www.instagram.com/iamnikhilmanhas?igsh=NmF5OWI3dGZheDdr" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-8 py-3 bg-primary text-primary-foreground rounded-full font-sans font-bold uppercase tracking-widest text-xs transition-all hover:bg-accent hover:text-primary shrink-0"
+                  >
+                    <Instagram size={18} />
+                    Follow Nikhil
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>

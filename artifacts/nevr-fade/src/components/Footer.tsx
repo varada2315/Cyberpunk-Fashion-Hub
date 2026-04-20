@@ -40,8 +40,8 @@ export default function Footer() {
               <a href="mailto:contact@nevrfade.in" className="font-sans text-primary-foreground/60 hover:text-primary-foreground text-sm transition-colors block">
                 contact@nevrfade.in
               </a>
-              <a href="mailto:Founder@nevrfade.in" className="font-sans text-primary-foreground/60 hover:text-primary-foreground text-sm transition-colors block text-xs italic">
-                Founder: Founder@nevrfade.in
+              <a href="https://www.instagram.com/iamnikhilmanhas?igsh=NmF5OWI3dGZheDdr" target="_blank" rel="noopener noreferrer" className="font-sans text-primary-foreground/60 hover:text-primary-foreground text-sm transition-colors block text-xs italic">
+                Founder: Nikhil Manhas (Instagram)
               </a>
             </div>
           </div>
