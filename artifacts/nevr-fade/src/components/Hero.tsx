@@ -7,7 +7,7 @@ export default function Hero() {
       {/* Background image */}
       <div
         className="absolute inset-0 bg-center bg-cover bg-no-repeat"
-        style={{ backgroundImage: "url('/hero-bg.png')" }}
+        style={{ backgroundImage: "url('/1776696793600 (1).png')" }}
       />
       {/* Dark gradient overlay — keeps text sharp and premium */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0D0D0D]/80 via-[#0D0D0D]/60 to-[#0D0D0D]/85" />
