@@ -14,6 +14,8 @@ interface AdminContextType {
   fetchOrders: () => Promise<void>;
   loading: boolean;
   error: string | null;
+  requestPasswordChangeOtp: (newPassword: string) => Promise<boolean>;
+  verifyAndChangePassword: (otp: string) => Promise<boolean>;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
@@ -72,7 +74,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     try {
       const fetchedProducts = await fetchAdminProducts(token);
       setProducts(fetchedProducts);
-    } catch (err) {
+    } catch (err: any) {
+      if (err.status === 401) {
+        logout();
+        return;
+      }
       setError('Failed to fetch products');
       console.error('Failed to fetch products:', err);
     } finally {
@@ -87,7 +93,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       const newProduct = await createAdminProduct(token, product);
       setProducts([...products, newProduct]);
       return newProduct;
-    } catch (err) {
+    } catch (err: any) {
+      if (err.status === 401) {
+        logout();
+        throw err;
+      }
       setError('Failed to create product');
       throw err;
     }
@@ -100,7 +110,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       const updatedProduct = await updateAdminProduct(token, id, product);
       setProducts(products.map(p => p.id === id ? updatedProduct : p));
       return updatedProduct;
-    } catch (err) {
+    } catch (err: any) {
+      if (err.status === 401) {
+        logout();
+        throw err;
+      }
       setError('Failed to update product');
       throw err;
     }
@@ -112,7 +126,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     try {
       await deleteAdminProduct(token, id);
       setProducts(products.filter(p => p.id !== id));
-    } catch (err) {
+    } catch (err: any) {
+      if (err.status === 401) {
+        logout();
+        throw err;
+      }
       setError('Failed to delete product');
       throw err;
     }
@@ -125,10 +143,40 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       const { fetchAdminOrders } = await import('@/lib/products');
       const fetchedOrders = await fetchAdminOrders(token);
       setOrders(fetchedOrders);
-    } catch (err) {
+    } catch (err: any) {
+      if (err.status === 401) {
+        logout();
+        return;
+      }
       setError('Failed to fetch orders');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const requestPasswordChangeOtp = async (newPassword: string) => {
+    if (!token) return false;
+    try {
+      const { requestAdminPasswordOtp } = await import('@/lib/products');
+      await requestAdminPasswordOtp(token, newPassword);
+      return true;
+    } catch (err: any) {
+      if (err.status === 401) logout();
+      setError(err.message || 'Failed to request OTP');
+      return false;
+    }
+  };
+
+  const verifyAndChangePassword = async (otp: string) => {
+    if (!token) return false;
+    try {
+      const { verifyAdminPasswordOtp } = await import('@/lib/products');
+      await verifyAdminPasswordOtp(token, otp);
+      return true;
+    } catch (err: any) {
+      if (err.status === 401) logout();
+      setError(err.message || 'Failed to verify OTP');
+      return false;
     }
   };
 
@@ -145,7 +193,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       orders,
       fetchOrders,
       loading,
-      error
+      error,
+      requestPasswordChangeOtp,
+      verifyAndChangePassword
     }}>
       {children}
     </AdminContext.Provider>

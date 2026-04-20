@@ -10,6 +10,7 @@ import Cart from "@/pages/Cart";
 import NotFound from "@/pages/not-found";
 import AboutPage from "@/pages/About";
 import Blog from "@/pages/Blog";
+import SEOLanding from "@/pages/SEOLanding";
 import { CartProvider } from "@/hooks/useCart";
 import { AdminProvider } from "@/hooks/useAdminContext";
 
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/about" component={AboutPage} />
       <Route path="/blog" component={Blog} />
+      <Route path="/premium-clothing-gymwear-brand-india-nevrfade-neverfade" component={SEOLanding} />
       <Route path="/products" component={Products} />
       <Route path="/product/:id" component={ProductDetail} />
       <Route path="/cart" component={Cart} />

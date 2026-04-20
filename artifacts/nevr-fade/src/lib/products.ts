@@ -45,7 +45,9 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
 
   if (!response.ok) {
     const message = (data as { error?: string }).error || `Request failed with status ${response.status}`;
-    throw new Error(message);
+    const error: any = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   return data as T;
@@ -164,4 +166,54 @@ export async function fetchAdminOrders(token: string): Promise<Order[]> {
   });
 
   return parseApiResponse<Order[]>(response);
+}
+
+export async function requestAdminPasswordOtp(token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch('/api/admin/request-otp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ newPassword })
+  });
+
+  return parseApiResponse<{ success: boolean; message: string }>(response);
+}
+
+export async function verifyAdminPasswordOtp(token: string, otp: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch('/api/admin/change-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ otp })
+  });
+
+  return parseApiResponse<{ success: boolean; message: string }>(response);
+}
+
+export async function requestAdminForgotPasswordOtp(newPassword: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch('/api/admin/forgot-password-request-otp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ newPassword })
+  });
+
+  return parseApiResponse<{ success: boolean; message: string }>(response);
+}
+
+export async function verifyAdminForgotPasswordOtp(otp: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch('/api/admin/forgot-password-change-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ otp })
+  });
+
+  return parseApiResponse<{ success: boolean; message: string }>(response);
 }

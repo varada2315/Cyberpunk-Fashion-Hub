@@ -59,6 +59,10 @@ export default defineConfig({
         target: `http://localhost:7826`,
         changeOrigin: true,
       },
+      '/uploads': {
+        target: `http://localhost:7826`,
+        changeOrigin: true,
+      },
     },
   },
   preview: {
@@ -67,6 +71,10 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': {
+        target: `http://localhost:7826`,
+        changeOrigin: true,
+      },
+      '/uploads': {
         target: `http://localhost:7826`,
         changeOrigin: true,
       },

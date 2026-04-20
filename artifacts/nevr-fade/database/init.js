@@ -49,15 +49,32 @@ export async function initDatabase() {
       orderId TEXT UNIQUE NOT NULL,
       name TEXT NOT NULL,
       email TEXT NOT NULL,
+      phone TEXT,
       address TEXT NOT NULL,
       city TEXT NOT NULL,
+      state TEXT,
       zipCode TEXT NOT NULL,
+      country TEXT DEFAULT 'India',
       items TEXT NOT NULL, -- JSON string of items
       amount REAL NOT NULL,
       status TEXT DEFAULT 'pending',
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Add missing columns to orders table if they don't exist (for existing databases)
+  const columns = await db.all("PRAGMA table_info(orders)");
+  const columnNames = columns.map(c => c.name);
+  
+  if (!columnNames.includes('phone')) {
+    await db.exec('ALTER TABLE orders ADD COLUMN phone TEXT');
+  }
+  if (!columnNames.includes('state')) {
+    await db.exec('ALTER TABLE orders ADD COLUMN state TEXT');
+  }
+  if (!columnNames.includes('country')) {
+    await db.exec('ALTER TABLE orders ADD COLUMN country TEXT DEFAULT "India"');
+  }
 
   // Insert sample products if table is empty
   const productCount = await db.get('SELECT COUNT(*) as count FROM products');

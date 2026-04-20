@@ -30,12 +30,20 @@ export default function Footer() {
 
           <div className="flex flex-col gap-4 items-center md:items-start">
             <h4 className="font-sans text-xs tracking-widest text-accent uppercase mb-2">Connect</h4>
-            <a href="#" className="font-sans text-primary-foreground/60 hover:text-primary-foreground text-sm transition-colors flex items-center gap-2">
+            <a href="https://www.instagram.com/nevrfade.in?igsh=MWk0czZldGwzdDV1Yg==" target="_blank" rel="noopener noreferrer" className="font-sans text-primary-foreground/60 hover:text-primary-foreground text-sm transition-colors flex items-center gap-2">
               <Instagram size={16} /> Instagram
             </a>
-            <a href="#" className="font-sans text-primary-foreground/60 hover:text-primary-foreground text-sm transition-colors flex items-center gap-2">
+            <a href="https://wa.me/919103586486" target="_blank" rel="noopener noreferrer" className="font-sans text-primary-foreground/60 hover:text-primary-foreground text-sm transition-colors flex items-center gap-2">
               <MessageCircle size={16} /> WhatsApp
             </a>
+            <div className="mt-2 flex flex-col gap-2">
+              <a href="mailto:contact@nevrfade.in" className="font-sans text-primary-foreground/60 hover:text-primary-foreground text-sm transition-colors block">
+                contact@nevrfade.in
+              </a>
+              <a href="mailto:Founder@nevrfade.in" className="font-sans text-primary-foreground/60 hover:text-primary-foreground text-sm transition-colors block text-xs italic">
+                Founder: Founder@nevrfade.in
+              </a>
+            </div>
           </div>
 
           <div className="flex flex-col gap-4 items-center md:items-start">

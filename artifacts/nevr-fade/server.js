@@ -17,7 +17,8 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 7826;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin1234';
+let ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin1234';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'NevrfadeClothing@gmail.com';
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -43,6 +44,7 @@ app.use('/uploads', express.static(uploadsDir));
 
 // Sessions
 const adminSessions = new Map();
+const otpStore = new Map();
 
 // Database
 let db;
@@ -61,7 +63,7 @@ const razorpay = new Razorpay({
 const transporterOptions = {
   host: process.env.SMTP_HOST || 'localhost',
   port: parseInt(process.env.SMTP_PORT || '1025'),
-  secure: false,
+  secure: parseInt(process.env.SMTP_PORT) === 465,
 };
 
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -73,53 +75,153 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
 
 const transporter = nodemailer.createTransport(transporterOptions);
 
-async function sendOrderEmail(email, name, orderId, status, amount, items) {
-  const isPaid = status === 'paid';
-  const subject = isPaid ? `Order Confirmation - ${orderId}` : `Payment Failed - ${orderId}`;
+async function sendOrderEmail(order, paymentStatus) {
+  const { email, name, orderId, amount, items, phone, address, city, state, zipCode, country } = order;
+  const isPaid = paymentStatus === 'paid';
+  const subject = isPaid ? `Your Order #${orderId} has been confirmed!` : `Payment required for your order #${orderId}`;
   
   // Parse items if they are string
   const itemsList = typeof items === 'string' ? JSON.parse(items) : items;
   
   const itemsHtml = itemsList.map(item => `
-    <li style="margin-bottom: 10px;">
-      <strong>${item.product.title || item.product.name}</strong> (x${item.quantity})<br>
-      <span style="color: #666; font-size: 0.9em;">
-        ${item.selectedColor ? `Color: ${item.selectedColor} ` : ''}
-        ${item.selectedSize ? `Size: ${item.selectedSize}` : ''}
-      </span>
-    </li>
+    <tr>
+      <td style="padding: 15px 0; border-bottom: 1px solid #eeeeee;">
+        <div style="font-weight: bold; color: #333333; font-size: 16px;">${item.product.title || item.product.name}</div>
+        <div style="color: #666666; font-size: 14px; margin-top: 4px;">
+          ${item.selectedColor ? `Color: ${item.selectedColor}` : ''} ${item.selectedSize ? ` | Size: ${item.selectedSize}` : ''}
+        </div>
+      </td>
+      <td style="padding: 15px 0; border-bottom: 1px solid #eeeeee; text-align: center; color: #333333;">x${item.quantity}</td>
+      <td style="padding: 15px 0; border-bottom: 1px solid #eeeeee; text-align: right; font-weight: bold; color: #333333;">₹${(item.product.price * item.quantity).toFixed(2)}</td>
+    </tr>
   `).join('');
 
   const mailOptions = {
-    from: `"Never Fade" <${process.env.SMTP_USER || 'no-reply@nevrfade.com'}>`,
+    from: `"Never Fade" <${process.env.SMTP_USER || 'no-replay@nevrfade.in'}>`,
     to: email,
+    bcc: ADMIN_EMAIL,
     subject: subject,
+    attachments: [{
+      filename: 'logo.png',
+      path: path.join(__dirname, 'public/NEVR FADE logo design.png'),
+      cid: 'nevrfadelogo'
+    }],
     html: `
-      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
-        <div style="background-color: #0d0d0d; color: #fff; padding: 20px; text-align: center;">
-          <h1 style="margin: 0; letter-spacing: 2px;">NEVER FADE</h1>
-        </div>
-        <div style="padding: 30px; line-height: 1.6;">
-          <h2 style="color: ${isPaid ? '#4CAF50' : '#f44336'}; margin-top: 0;">${isPaid ? 'Payment Successful!' : 'Payment Failed'}</h2>
-          <p>Dear ${name},</p>
-          <p>${isPaid ? 'Thank you for your purchase! Your payment was successful and your order is being processed.' : 'Unfortunately, your payment for order ' + orderId + ' failed. Please check your payment details and try again.'}</p>
-          
-          <div style="background-color: #f9f9f9; padding: 20px; border-radius: 4px; margin: 20px 0;">
-            <h3 style="margin-top: 0; font-size: 1.1em; border-bottom: 1px solid #eee; padding-bottom: 10px;">Order Summary</h3>
-            <p style="margin: 5px 0;"><strong>Order ID:</strong> ${orderId}</p>
-            <p style="margin: 5px 0;"><strong>Total Amount:</strong> ₹${amount.toFixed(2)}</p>
-            <h4 style="margin-bottom: 10px;">Items:</h4>
-            <ul style="padding-left: 20px; margin: 0;">${itemsHtml}</ul>
-          </div>
-          
-          <p>${isPaid ? 'We will notify you once your order has been shipped.' : 'If you need help, feel free to contact our support team.'}</p>
-          <p>Stay Cyber,</p>
-          <p><strong>The Never Fade Team</strong></p>
-        </div>
-        <div style="background-color: #f1f1f1; padding: 15px; text-align: center; font-size: 0.8em; color: #777;">
-          <p>© ${new Date().getFullYear()} Cyberpunk Fashion Hub - Never Fade. All rights reserved.</p>
-        </div>
-      </div>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${subject}</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f4f4; color: #333333;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td align="center" style="padding: 20px 0;">
+              <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <!-- Header -->
+                <tr>
+                  <td align="center" style="padding: 40px 0; background-color: #ffffff; border-bottom: 1px solid #f0f0f0;">
+                    <img src="cid:nevrfadelogo" alt="NEVR FADE" width="200" style="display: block; border: 0;">
+                  </td>
+                </tr>
+                
+                <!-- Hero Section -->
+                <tr>
+                  <td align="center" style="padding: 40px 40px 20px 40px;">
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background-color: ${isPaid ? '#e6f7ed' : '#fff0f0'}; display: table-cell; vertical-align: middle;">
+                      <span style="font-size: 30px; color: ${isPaid ? '#28a745' : '#dc3545'}; line-height: 60px;">${isPaid ? '✓' : '!'}</span>
+                    </div>
+                    <h1 style="margin: 20px 0 10px 0; font-size: 24px; color: #1a1a1a;">${isPaid ? 'Order Confirmed!' : 'Action Required'}</h1>
+                    <p style="margin: 0; color: #666666; font-size: 16px;">Order ID: <strong>#${orderId}</strong></p>
+                  </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 20px 40px 40px 40px;">
+                    <p style="font-size: 16px; line-height: 1.6; color: #444444;">
+                      Hi ${name},<br><br>
+                      ${isPaid 
+                        ? "Thank you for shopping with NEVR FADE. Your order has been confirmed and is now being prepared for shipping. We'll send you a notification as soon as it's on its way." 
+                        : "There was an issue processing your payment. Please use the link below to complete your order and secure your items."}
+                    </p>
+
+                    <!-- Order Summary -->
+                    <h3 style="margin: 40px 0 15px 0; font-size: 18px; border-bottom: 2px solid #333333; padding-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Order Summary</h3>
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                      <thead>
+                        <tr>
+                          <th align="left" style="color: #888888; font-size: 12px; text-transform: uppercase;">Product</th>
+                          <th align="center" style="color: #888888; font-size: 12px; text-transform: uppercase;">Qty</th>
+                          <th align="right" style="color: #888888; font-size: 12px; text-transform: uppercase;">Price</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${itemsHtml}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colspan="2" style="padding: 20px 0 5px 0; text-align: right; color: #666666;">Subtotal</td>
+                          <td style="padding: 20px 0 5px 0; text-align: right; color: #333333;">₹${(amount / 1.08).toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                          <td colspan="2" style="padding: 5px 0 5px 0; text-align: right; color: #666666;">Tax (8%)</td>
+                          <td style="padding: 5px 0 5px 0; text-align: right; color: #333333;">₹${(amount - (amount / 1.08)).toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                          <td colspan="2" style="padding: 10px 0 0 0; text-align: right; font-weight: bold; font-size: 18px; color: #333333;">Total Paid</td>
+                          <td style="padding: 10px 0 0 0; text-align: right; font-weight: bold; font-size: 24px; color: #000000;">₹${amount.toFixed(2)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+
+                    <!-- Delivery Info -->
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 40px; background-color: #fafafa; border-radius: 4px; border: 1px solid #eeeeee;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <h4 style="margin: 0 0 10px 0; text-transform: uppercase; font-size: 12px; color: #888888;">Delivery Address</h4>
+                          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #333333;">
+                            <strong>${name}</strong><br>
+                            ${address}<br>
+                            ${city}, ${state} ${zipCode}<br>
+                            ${country}<br>
+                            Phone: ${phone || 'N/A'}
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+
+                    ${isPaid ? `
+                    <div style="margin-top: 30px; padding: 20px; border: 1px dashed #28a745; background-color: #f6fff8; border-radius: 8px; text-align: center;">
+                      <p style="margin: 0 0 15px 0; font-size: 14px; color: #333333;">Need help or have questions about your order?</p>
+                      <a href="https://wa.me/919103586486?text=${encodeURIComponent(`Hi, I have an inquiry regarding my order #${orderId}`)}" style="background-color: #25D366; color: #ffffff; padding: 12px 25px; border-radius: 30px; text-decoration: none; font-weight: bold; display: inline-block; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="16" height="16" style="vertical-align: middle; margin-right: 8px;">
+                        Connect with Vendor on WhatsApp
+                      </a>
+                    </div>
+                    ` : `
+                    <div style="margin-top: 30px; text-align: center;">
+                      <a href="#" style="background-color: #000000; color: #ffffff; padding: 15px 30px; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block;">Complete Payment</a>
+                    </div>`}
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td align="center" style="padding: 40px; background-color: #1a1a1a; color: #888888; font-size: 12px; line-height: 1.5;">
+                    <p style="margin: 0 0 10px 0; color: #ffffff; font-weight: bold;">NEVR FADE</p>
+                    <p style="margin: 0 0 20px 0;">Cyberpunk Fashion for the New Age.</p>
+                    <p style="margin: 0;">&copy; ${new Date().getFullYear()} Never Fade. All rights reserved.</p>
+                    <p style="margin: 10px 0 0 0;">You received this because you made a purchase on nevrfade.in</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
     `
   };
 
@@ -132,9 +234,9 @@ async function sendOrderEmail(email, name, orderId, status, amount, items) {
       return;
     }
     await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${email} for order ${orderId}`);
+    console.log(`Order confirmation email sent to ${email} for order ${orderId}`);
   } catch (error) {
-    console.error(`Failed to send email to ${email}:`, error);
+    console.error(`Failed to send order email to ${email}:`, error);
   }
 }
 
@@ -195,13 +297,20 @@ app.post('/api/upload', requireAdminAuth, (req, res) => {
   if (!image) return res.status(400).json({ error: 'No image provided' });
   try {
     const matches = image.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
-    if (!matches) return res.status(400).json({ error: 'Invalid format' });
+    if (!matches) {
+      console.error('Invalid image format received');
+      return res.status(400).json({ error: 'Invalid format' });
+    }
     const ext = matches[1];
     const data = Buffer.from(matches[2], 'base64');
     const filename = `img_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
     fs.writeFileSync(path.join(uploadsDir, filename), data);
+    console.log(`Successfully uploaded image: ${filename} (${data.length} bytes)`);
     res.json({ url: `/uploads/${filename}` });
-  } catch (err) { res.status(500).json({ error: 'Upload failed' }); }
+  } catch (err) { 
+    console.error('Upload failed with error:', err);
+    res.status(500).json({ error: 'Upload failed' }); 
+  }
 });
 
 app.post('/api/admin/login', (req, res) => {
@@ -210,6 +319,162 @@ app.post('/api/admin/login', (req, res) => {
   const token = crypto.randomBytes(24).toString('hex');
   adminSessions.set(token, { createdAt: Date.now(), username });
   res.json({ token });
+});
+
+app.post('/api/admin/request-otp', requireAdminAuth, async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  console.log(`[AUTH] Generated Admin Password Change OTP: ${otp}`);
+  otpStore.set(req.adminToken, {
+    otp,
+    newPassword,
+    expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
+  });
+
+  const mailOptions = {
+    from: `"Never Fade Admin" <${process.env.SMTP_USER || 'no-replay@nevrfade.in'}>`,
+    to: ADMIN_EMAIL,
+    subject: 'Admin Password Change OTP',
+    html: `
+      <h2>Admin Password Change Request</h2>
+      <p>An attempt was made to change the admin password for NevrFade dashboard.</p>
+      <p>Your OTP verification code is: <strong style="font-size: 24px;">${otp}</strong></p>
+      <p>This OTP will expire in 10 minutes. If you did not request this, please ignore this email.</p>
+    `
+  };
+
+  try {
+    const isLocal = process.env.SMTP_HOST === 'localhost' || process.env.SMTP_HOST === '127.0.0.1';
+    if (!isLocal && (!process.env.SMTP_USER || !process.env.SMTP_PASS)) {
+      console.log('Sending mock OTP (No SMTP credentials):', otp);
+      return res.json({ success: true, message: 'OTP sent (mock)' });
+    }
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: 'OTP sent successfully' });
+  } catch (error) {
+    console.error('Failed to send OTP email:', error);
+    res.status(500).json({ error: 'Failed to send OTP email' });
+  }
+});
+
+app.post('/api/admin/change-password', requireAdminAuth, async (req, res) => {
+  const { otp } = req.body;
+  const sessionData = otpStore.get(req.adminToken);
+  
+  if (!sessionData) return res.status(400).json({ error: 'No active password change request' });
+  if (Date.now() > sessionData.expiresAt) {
+    otpStore.delete(req.adminToken);
+    return res.status(400).json({ error: 'OTP has expired' });
+  }
+  if (sessionData.otp !== otp) return res.status(400).json({ error: 'Invalid OTP' });
+  
+  // Valid OTP! Change password.
+  try {
+    ADMIN_PASSWORD = sessionData.newPassword;
+    console.log('[AUTH] OTP entered correctly. Password changed successfully.');
+    otpStore.delete(req.adminToken);
+    
+    // Attempt to update .env to ensure persistence
+    const envPath = path.join(__dirname, '.env');
+    let envContent = '';
+    if (fs.existsSync(envPath)) {
+      envContent = fs.readFileSync(envPath, 'utf8');
+      
+      const adminPassRegex = /^ADMIN_PASSWORD=.*$/m;
+      if (adminPassRegex.test(envContent)) {
+        envContent = envContent.replace(adminPassRegex, `ADMIN_PASSWORD=${ADMIN_PASSWORD}`);
+      } else {
+        envContent += `\nADMIN_PASSWORD=${ADMIN_PASSWORD}\n`;
+      }
+    } else {
+      envContent = `ADMIN_PASSWORD=${ADMIN_PASSWORD}\n`;
+    }
+    fs.writeFileSync(envPath, envContent);
+    
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Failed to write new password to .env:', error);
+    res.status(500).json({ error: 'Failed to write new password to environmental variables' });
+  }
+});
+
+// Unauthenticated forgot password routes
+app.post('/api/admin/forgot-password-request-otp', async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  console.log(`[AUTH] Generated Forgot Password OTP: ${otp}`);
+  otpStore.set('forgot_password', {
+    otp,
+    newPassword,
+    expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
+  });
+
+  const mailOptions = {
+    from: `"Never Fade Admin" <${process.env.SMTP_USER || 'no-replay@nevrfade.in'}>`,
+    to: ADMIN_EMAIL,
+    subject: 'Admin Password Reset OTP',
+    html: `
+      <h2>Admin Password Reset Request</h2>
+      <p>Someone (hopefully you) requested to reset the admin password from the login screen.</p>
+      <p>Your OTP verification code is: <strong style="font-size: 24px;">${otp}</strong></p>
+      <p>This OTP will expire in 10 minutes. If you did not request this, please ignore this email.</p>
+    `
+  };
+
+  try {
+    const isLocal = process.env.SMTP_HOST === 'localhost' || process.env.SMTP_HOST === '127.0.0.1';
+    if (!isLocal && (!process.env.SMTP_USER || !process.env.SMTP_PASS)) {
+      console.log('Sending mock OTP (No SMTP credentials):', otp);
+      return res.json({ success: true, message: 'OTP sent (mock)' });
+    }
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: 'OTP sent successfully' });
+  } catch (error) {
+    console.error('Failed to send OTP email:', error);
+    res.status(500).json({ error: 'Failed to send OTP email' });
+  }
+});
+
+app.post('/api/admin/forgot-password-change-password', async (req, res) => {
+  const { otp } = req.body;
+  const sessionData = otpStore.get('forgot_password');
+  
+  if (!sessionData) return res.status(400).json({ error: 'No active password reset request' });
+  if (Date.now() > sessionData.expiresAt) {
+    otpStore.delete('forgot_password');
+    return res.status(400).json({ error: 'OTP has expired' });
+  }
+  if (sessionData.otp !== otp) return res.status(400).json({ error: 'Invalid OTP' });
+  
+  try {
+    ADMIN_PASSWORD = sessionData.newPassword;
+    console.log('[AUTH] OTP entered correctly via Forgot Password. Password changed successfully.');
+    otpStore.delete('forgot_password');
+    
+    const envPath = path.join(__dirname, '.env');
+    let envContent = '';
+    if (fs.existsSync(envPath)) {
+      envContent = fs.readFileSync(envPath, 'utf8');
+      const adminPassRegex = /^ADMIN_PASSWORD=.*$/m;
+      if (adminPassRegex.test(envContent)) {
+        envContent = envContent.replace(adminPassRegex, `ADMIN_PASSWORD=${ADMIN_PASSWORD}`);
+      } else {
+        envContent += `\nADMIN_PASSWORD=${ADMIN_PASSWORD}\n`;
+      }
+    } else {
+      envContent = `ADMIN_PASSWORD=${ADMIN_PASSWORD}\n`;
+    }
+    fs.writeFileSync(envPath, envContent);
+    
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Failed to write new password to .env:', error);
+    res.json({ success: true, message: 'Password changed successfully (in-memory only)' });
+  }
 });
 
 app.get('/api/admin/products', requireAdminAuth, async (req, res) => {
@@ -276,15 +541,18 @@ app.post('/api/create-order', async (req, res) => {
 });
 
 app.post('/api/checkout', async (req, res) => {
-  const { items, name, email, address, city, state, zipCode, orderId } = req.body;
+  const { items, name, email, address, city, state, zipCode, country, phone, orderId } = req.body;
   const total = items.reduce((s, i) => s + (i.product.price * i.quantity), 0) * 1.08;
   try {
     await db.run(
-      'INSERT INTO orders (orderId, name, email, address, city, zipCode, items, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      orderId, name, email, `${address}, ${state||''}`, city, zipCode, JSON.stringify(items), total
+      'INSERT INTO orders (orderId, name, email, phone, address, city, state, zipCode, country, items, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      orderId, name, email, phone, address, city, state, zipCode, country || 'India', JSON.stringify(items), total
     );
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: 'Checkout failed' }); }
+  } catch (e) { 
+    console.error('Checkout error:', e);
+    res.status(500).json({ error: 'Checkout failed' }); 
+  }
 });
 
 app.post('/api/razorpay-webhook', (req, res) => {
@@ -308,8 +576,8 @@ app.post('/api/razorpay-webhook', (req, res) => {
         // Fetch order details from DB to send email
         db.get('SELECT * FROM orders WHERE orderId = ?', orderId).then(order => {
           if (order) {
-            sendOrderEmail(order.email, order.name, order.orderId, 'paid', order.amount, order.items);
-            // Update order status in DB if column exists (optional but recommended)
+            sendOrderEmail(order, 'paid');
+            // Update order status in DB
             db.run('UPDATE orders SET status = ? WHERE orderId = ?', 'paid', orderId).catch(() => {});
           }
         });
@@ -321,7 +589,7 @@ app.post('/api/razorpay-webhook', (req, res) => {
         // Fetch order details from DB to send failure email
         db.get('SELECT * FROM orders WHERE orderId = ?', orderId).then(order => {
           if (order) {
-            sendOrderEmail(order.email, order.name, order.orderId, 'failed', order.amount, order.items);
+            sendOrderEmail(order, 'failed');
             db.run('UPDATE orders SET status = ? WHERE orderId = ?', 'failed', orderId).catch(() => {});
           }
         });

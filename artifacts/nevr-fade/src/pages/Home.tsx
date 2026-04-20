@@ -6,6 +6,7 @@ import Collections from "@/components/Collections";
 import Story from "@/components/Story";
 import CtaBanner from "@/components/CtaBanner";
 import Footer from "@/components/Footer";
+import SEOContentBlock from "@/components/SEOContentBlock";
 
 export default function Home() {
   return (
@@ -17,6 +18,7 @@ export default function Home() {
       <Collections />
       <Story />
       <CtaBanner />
+      <SEOContentBlock />
       <Footer />
     </main>
   );

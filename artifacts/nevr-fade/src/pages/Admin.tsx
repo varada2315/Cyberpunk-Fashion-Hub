@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { useAdminContext } from "@/hooks/useAdminContext";
 import { formatINR } from "@/lib/currency";
 import {
@@ -40,7 +41,10 @@ import {
   Upload,
   ChevronRight,
   Save,
-  Trash
+  Trash,
+  Lock,
+  Mail,
+  ShieldCheck
 } from "lucide-react";
 
 const ALL_SIZES = ["S", "M", "L", "XL", "XXL"];
@@ -58,7 +62,9 @@ export default function Admin() {
     orders,
     fetchOrders,
     loading,
-    error
+    error,
+    requestPasswordChangeOtp,
+    verifyAndChangePassword
   } = useAdminContext();
 
   const [activeTab, setActiveTab] = useState("products");
@@ -81,6 +87,39 @@ export default function Admin() {
 
   const [imageUrlInput, setImageUrlInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Security State
+  const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [securityLoading, setSecurityLoading] = useState(false);
+
+  const handleRequestOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newAdminPassword.length < 6) return toast.error("Password must be at least 6 characters.");
+    setSecurityLoading(true);
+    const success = await requestPasswordChangeOtp(newAdminPassword);
+    setSecurityLoading(false);
+    if (success) {
+      setOtpSent(true);
+      toast.success("Validation OTP dispatched.", {
+        description: "Please check NevrfadeClothing@gmail.com inbox."
+      });
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSecurityLoading(true);
+    const success = await verifyAndChangePassword(otpCode);
+    setSecurityLoading(false);
+    if (success) {
+      toast.success("Administrator passphrase successfully bypassed and modified.");
+      setOtpSent(false);
+      setNewAdminPassword("");
+      setOtpCode("");
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -201,14 +240,29 @@ export default function Admin() {
     });
   };
 
+  const [uploading, setUploading] = useState(false);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    setUploading(true);
+    const newImages = [...formData.images];
+    
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const reader = new FileReader();
       
+      // Create a local preview immediately
+      const localUrl = URL.createObjectURL(file);
+      
+      // We'll temporarily add the local URL to the images list
+      // This gives instant feedback
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, localUrl]
+      }));
+
+      const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = event.target?.result as string;
         try {
@@ -223,14 +277,31 @@ export default function Admin() {
           
           const result = await response.json();
           if (result.url) {
+            // Replace the local preview URL with the real server URL
             setFormData(prev => ({
               ...prev,
-              images: [...prev.images, result.url]
+              images: prev.images.map(img => img === localUrl ? result.url : img)
             }));
+          } else {
+             // If no URL returned, remove the local preview
+             setFormData(prev => ({
+               ...prev,
+               images: prev.images.filter(img => img !== localUrl)
+             }));
+             alert("Upload failed for " + file.name);
           }
         } catch (err) {
           console.error("Upload failed", err);
+          // Remove the failed preview
+          setFormData(prev => ({
+            ...prev,
+            images: prev.images.filter(img => img !== localUrl)
+          }));
           alert("Failed to upload " + file.name);
+        } finally {
+          // Check if all files in this batch are done (simplified)
+          if (i === files.length - 1) setUploading(false);
+          URL.revokeObjectURL(localUrl);
         }
       };
       
@@ -239,43 +310,149 @@ export default function Admin() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordStep, setForgotPasswordStep] = useState(1);
+  const [resetOtpCode, setResetOtpCode] = useState("");
+
+  const handleForgotRequestOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newAdminPassword.length < 6) return toast.error("Password must be at least 6 characters.");
+    setSecurityLoading(true);
+    try {
+      const { requestAdminForgotPasswordOtp } = await import('@/lib/products');
+      const res = await requestAdminForgotPasswordOtp(newAdminPassword);
+      if (res.success) {
+        setForgotPasswordStep(2);
+        toast.success("Reset OTP dispatched.", { description: "Please check NevrfadeClothing@gmail.com inbox." });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to request OTP');
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
+
+  const handleForgotVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSecurityLoading(true);
+    try {
+      const { verifyAdminForgotPasswordOtp } = await import('@/lib/products');
+      const res = await verifyAdminForgotPasswordOtp(resetOtpCode);
+      if (res.success) {
+        toast.success("Administrator passphrase successfully modified.");
+        setShowForgotPassword(false);
+        setForgotPasswordStep(1);
+        setNewAdminPassword("");
+        setResetOtpCode("");
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to verify OTP');
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#F5F0EB] flex items-center justify-center p-6 font-sans">
-        <Card className="w-full max-w-md border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] bg-white">
+        <Card className="w-full max-w-md border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] bg-white overflow-hidden relative">
           <CardHeader className="text-center space-y-2 pt-10">
             <div className="mx-auto bg-black text-white w-12 h-12 rounded-full flex items-center justify-center mb-4">
-               <Package className="w-6 h-6" />
+               {showForgotPassword ? <Lock className="w-5 h-5"/> : <Package className="w-6 h-6" />}
             </div>
-            <CardTitle className="text-3xl font-heading tracking-tight uppercase">Nevr Fade Admin</CardTitle>
-            <CardDescription className="font-medium">Management Authentication Protocol</CardDescription>
+            <CardTitle className="text-3xl font-heading tracking-tight uppercase">
+               {showForgotPassword ? "Reset Access" : "Nevr Fade Admin"}
+            </CardTitle>
+            <CardDescription className="font-medium">
+               {showForgotPassword ? "Strict 2-Step Verification Protocol" : "Management Authentication Protocol"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="pb-10">
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase text-gray-400 tracking-widest">Access Key</label>
-                <Input 
-                  placeholder="Username" 
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="h-12 border-gray-100 bg-gray-50/50 focus:bg-white transition-all rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase text-gray-400 tracking-widest">Secret Phase</label>
-                <Input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 border-gray-100 bg-gray-50/50 focus:bg-white transition-all rounded-xl"
-                />
-              </div>
-              {error && <p className="text-red-500 text-sm font-bold animate-shake">{error}</p>}
-              <Button type="submit" className="w-full bg-black text-white hover:bg-zinc-800 h-14 text-sm font-bold uppercase tracking-[0.2em] rounded-xl shadow-lg transition-transform active:scale-95">
-                Initialize Session
-              </Button>
-            </form>
+            {!showForgotPassword ? (
+               <form onSubmit={handleLogin} className="space-y-4 animate-in fade-in slide-in-from-left-4">
+                 <div className="space-y-2">
+                   <label className="text-xs font-bold uppercase text-gray-400 tracking-widest">Access Key</label>
+                   <Input 
+                     placeholder="Username" 
+                     value={username}
+                     onChange={(e) => setUsername(e.target.value)}
+                     className="h-12 border-gray-100 bg-gray-50/50 focus:bg-white transition-all rounded-xl"
+                   />
+                 </div>
+                 <div className="space-y-2">
+                   <label className="text-xs font-bold uppercase text-gray-400 tracking-widest">Secret Phase</label>
+                   <Input 
+                     type="password" 
+                     placeholder="••••••••" 
+                     value={password}
+                     onChange={(e) => setPassword(e.target.value)}
+                     className="h-12 border-gray-100 bg-gray-50/50 focus:bg-white transition-all rounded-xl"
+                   />
+                 </div>
+                 {error && <p className="text-red-500 text-sm font-bold animate-shake">{error}</p>}
+                 <Button type="submit" className="w-full bg-black text-white hover:bg-zinc-800 h-14 text-sm font-bold uppercase tracking-[0.2em] rounded-xl shadow-lg transition-transform active:scale-95">
+                   Initialize Session
+                 </Button>
+                 <div className="text-center mt-4">
+                    <button type="button" onClick={() => setShowForgotPassword(true)} className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-black transition-colors">
+                       Forgot Secret Phase?
+                    </button>
+                 </div>
+               </form>
+            ) : (
+               <div className="animate-in fade-in slide-in-from-right-4">
+                  {forgotPasswordStep === 1 ? (
+                     <form onSubmit={handleForgotRequestOtp} className="space-y-4">
+                       <div className="space-y-2">
+                         <label className="text-xs font-bold uppercase text-gray-400 tracking-widest">New Passphrase</label>
+                         <Input 
+                           type="password"
+                           value={newAdminPassword}
+                           onChange={(e) => setNewAdminPassword(e.target.value)}
+                           className="h-12 border-gray-100 bg-gray-50/50 focus:bg-white transition-all rounded-xl"
+                           placeholder="Enter new strong password"
+                           required
+                         />
+                       </div>
+                       <div className="grid grid-cols-2 gap-3 pt-2">
+                          <Button type="button" variant="outline" disabled={securityLoading} onClick={() => setShowForgotPassword(false)} className="h-14 text-xs font-bold uppercase tracking-widest rounded-xl">
+                            Cancel
+                          </Button>
+                          <Button type="submit" disabled={securityLoading} className="bg-black text-white hover:bg-zinc-800 h-14 text-xs font-bold uppercase tracking-widest rounded-xl shadow-lg flex gap-2">
+                            {securityLoading ? '...' : <><Mail className="w-4 h-4"/> Get OTP</>}
+                          </Button>
+                       </div>
+                     </form>
+                  ) : (
+                     <form onSubmit={handleForgotVerifyOtp} className="space-y-4">
+                        <div className="bg-red-50 p-3 rounded-xl border border-red-100 mb-4">
+                           <p className="text-xs text-red-800 font-medium leading-relaxed">
+                             A 6-digit key was sent to <b>NevrfadeClothing@gmail.com</b>
+                           </p>
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-xs font-bold uppercase text-gray-400 tracking-widest">Verification Key</label>
+                           <Input 
+                             type="number"
+                             value={resetOtpCode}
+                             onChange={(e) => setResetOtpCode(e.target.value)}
+                             className="h-14 text-center text-xl tracking-[0.5em] border-gray-200 bg-gray-50/50 rounded-xl font-heading"
+                             placeholder="------"
+                             required
+                           />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                          <Button type="button" variant="outline" disabled={securityLoading} onClick={() => setForgotPasswordStep(1)} className="h-14 text-xs font-bold uppercase tracking-widest rounded-xl">
+                            Back
+                          </Button>
+                          <Button type="submit" disabled={securityLoading} className="bg-red-500 text-white hover:bg-red-600 h-14 text-xs font-bold uppercase tracking-widest rounded-xl shadow-lg flex gap-2">
+                            {securityLoading ? '...' : <><Lock className="w-4 h-4"/> Verify</>}
+                          </Button>
+                       </div>
+                     </form>
+                  )}
+               </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -306,9 +483,12 @@ export default function Admin() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="bg-zinc-100/80 p-1 rounded-2xl flex max-w-[150px] backdrop-blur-sm">
+          <TabsList className="bg-zinc-100/80 p-1 rounded-2xl flex max-w-[300px] backdrop-blur-sm">
             <TabsTrigger value="products" className="flex-1 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all gap-2 py-3 text-xs font-bold uppercase tracking-widest">
               Inventory
+            </TabsTrigger>
+            <TabsTrigger value="security" className="flex-1 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all gap-2 py-3 text-xs font-bold uppercase tracking-widest text-zinc-600">
+              Security
             </TabsTrigger>
           </TabsList>
 
@@ -385,19 +565,29 @@ export default function Admin() {
                                  </Button>
                               </div>
                               <div className="grid grid-cols-4 gap-3">
-                                 {formData.images.map((url, i) => (
-                                    <div key={i} className="aspect-square rounded-xl overflow-hidden bg-zinc-100 relative group">
-                                       <img src={url} className="w-full h-full object-cover" />
-                                       <button 
-                                          type="button"
-                                          onClick={() => removeImage(i)}
-                                          className="absolute inset-0 bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
-                                       >
-                                          <Trash2 className="w-5 h-5" />
-                                       </button>
-                                       {i === 0 && <Badge className="absolute top-1 left-1 bg-black/50 text-white border-none text-[8px] px-1 py-0">MAIN</Badge>}
-                                    </div>
-                                 ))}
+                                 {formData.images.map((url, i) => {
+                                    const isLocal = url.startsWith('blob:');
+                                    return (
+                                       <div key={i} className={`aspect-square rounded-xl overflow-hidden bg-zinc-100 relative group ${isLocal ? 'opacity-70' : ''}`}>
+                                          <img src={url} className="w-full h-full object-cover" />
+                                          {isLocal && (
+                                             <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                             </div>
+                                          )}
+                                          {!isLocal && (
+                                             <button 
+                                                type="button"
+                                                onClick={() => removeImage(i)}
+                                                className="absolute inset-0 bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+                                             >
+                                                <Trash2 className="w-5 h-5" />
+                                             </button>
+                                          )}
+                                          {i === 0 && <Badge className="absolute top-1 left-1 bg-black/50 text-white border-none text-[8px] px-1 py-0">MAIN</Badge>}
+                                       </div>
+                                    );
+                                 })}
                                  {formData.images.length === 0 && (
                                     <div className="col-span-4 py-8 border-2 border-dashed border-zinc-100 rounded-2xl flex flex-col items-center justify-center text-zinc-300">
                                        <ImageIcon className="w-8 h-8 mb-2" />
@@ -519,6 +709,73 @@ export default function Admin() {
                   </div>
                </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="security" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <div className="max-w-2xl mx-auto space-y-8 mt-12">
+               <div className="text-center space-y-4">
+                 <div className="mx-auto w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center">
+                   <ShieldCheck className="w-8 h-8" />
+                 </div>
+                 <h2 className="text-3xl font-heading tracking-tight uppercase">Modify Access Keys</h2>
+                 <p className="text-zinc-500">Administrator passphrase updates require strict 2-step verification via your registered SMTP secure channel.</p>
+               </div>
+
+               <Card className="border-none shadow-2xl rounded-3xl bg-white p-4">
+                 <CardContent className="p-8">
+                   {!otpSent ? (
+                     <form onSubmit={handleRequestOtp} className="space-y-6">
+                       <div className="space-y-2">
+                         <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] flex items-center gap-2">
+                           <Lock className="w-3 h-3"/> New Passphrase
+                         </label>
+                         <Input 
+                           type="password"
+                           value={newAdminPassword}
+                           onChange={(e) => setNewAdminPassword(e.target.value)}
+                           placeholder="Enter new strong password"
+                           className="h-14 border-zinc-100 bg-zinc-50/50 rounded-xl font-bold"
+                           required
+                         />
+                       </div>
+                       <Button type="submit" disabled={securityLoading} className="w-full bg-black text-white hover:bg-zinc-900 h-14 rounded-xl font-bold uppercase tracking-widest text-sm shadow-xl flex gap-3">
+                         {securityLoading ? 'Generating Token...' : <><Mail className="w-5 h-5"/> Send Validation OTP</>}
+                       </Button>
+                     </form>
+                   ) : (
+                     <form onSubmit={handleVerifyOtp} className="space-y-6 animate-in slide-in-from-right-4">
+                        <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-4 mb-8">
+                           <Mail className="w-6 h-6 text-red-500 shrink-0 mt-1" />
+                           <p className="text-sm text-red-800 font-medium leading-relaxed">
+                             A 6-digit confirmation key has been dispatched to <b>NevrfadeClothing@gmail.com</b>. The key will expire in exactly 10 minutes.
+                           </p>
+                        </div>
+                       <div className="space-y-2">
+                         <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] flex items-center gap-2">
+                           Verification Key
+                         </label>
+                         <Input 
+                           type="number"
+                           value={otpCode}
+                           onChange={(e) => setOtpCode(e.target.value)}
+                           placeholder="000000"
+                           className="h-16 text-center text-2xl tracking-[1em] border-zinc-200 bg-zinc-50/50 rounded-xl font-bold font-heading"
+                           required
+                         />
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                         <Button type="button" variant="outline" disabled={securityLoading} onClick={() => setOtpSent(false)} className="h-14 rounded-xl font-bold uppercase tracking-widest text-sm border-zinc-200">
+                           Cancel
+                         </Button>
+                         <Button type="submit" disabled={securityLoading} className="bg-red-500 text-white hover:bg-red-600 h-14 rounded-xl font-bold uppercase tracking-widest text-sm shadow-xl flex gap-3">
+                           {securityLoading ? 'Verifying...' : <><Lock className="w-5 h-5"/> Verify & Change</>}
+                         </Button>
+                       </div>
+                     </form>
+                   )}
+                 </CardContent>
+               </Card>
+             </div>
           </TabsContent>
         </Tabs>
       </div>
