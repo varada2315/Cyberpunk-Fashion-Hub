@@ -83,19 +83,32 @@ async function sendOrderEmail(order, paymentStatus) {
   // Parse items if they are string
   const itemsList = typeof items === 'string' ? JSON.parse(items) : items;
   
-  const itemsHtml = itemsList.map(item => `
-    <tr>
-      <td style="padding: 15px 0; border-bottom: 1px solid #eeeeee;">
-        <div style="font-weight: bold; color: #333333; font-size: 16px;">${item.product.title || item.product.name}</div>
-        <div style="color: #666666; font-size: 14px; margin-top: 4px;">
-          ${item.selectedColor ? `Color: ${item.selectedColor}` : ''} ${item.selectedSize ? ` | Size: ${item.selectedSize}` : ''}
-        </div>
-      </td>
-      <td style="padding: 15px 0; border-bottom: 1px solid #eeeeee; text-align: center; color: #333333;">x${item.quantity}</td>
-      <td style="padding: 15px 0; border-bottom: 1px solid #eeeeee; text-align: right; font-weight: bold; color: #333333;">₹${(item.product.price * item.quantity).toFixed(2)}</td>
-    </tr>
-  `).join('');
+  function getColorName(hex) {
+    if (!hex) return '';
+    const h = hex.toLowerCase();
+    if (h === '#000000' || h === 'black') return 'Black';
+    if (h === '#faf9f6' || h === 'off-white' || h === 'off white') return 'Off White';
+    return hex;
+  }
 
+  const itemsHtml = itemsList.map(item => {
+    const p = item.product || {};
+    const color = getColorName(item.selectedColor || p.selectedColor);
+    const size = item.selectedSize || p.selectedSize;
+    return `
+      <tr>
+        <td style="padding: 15px 0; border-bottom: 1px solid #eeeeee;">
+          <div style="font-weight: bold; color: #333333; font-size: 16px;">${p.title || p.name || 'Product'}</div>
+          <div style="color: #666666; font-size: 14px; margin-top: 4px;">
+            ${color ? `<strong>Color:</strong> ${color}` : ''} ${size ? `${color ? ' | ' : ''}<strong>Size:</strong> ${size}` : ''}
+          </div>
+        </td>
+        <td style="padding: 15px 0; border-bottom: 1px solid #eeeeee; text-align: center; color: #333333;">x${item.quantity}</td>
+        <td style="padding: 15px 0; border-bottom: 1px solid #eeeeee; text-align: right; font-weight: bold; color: #333333;">₹${((p.price || 0) * item.quantity).toFixed(2)}</td>
+      </tr>
+    `;
+  }).join('');
+ 
   const mailOptions = {
     from: `"Never Fade" <${process.env.SMTP_USER || 'no-replay@nevrfade.in'}>`,
     to: email,
@@ -136,7 +149,7 @@ async function sendOrderEmail(order, paymentStatus) {
                     <p style="margin: 0; color: #666666; font-size: 16px;">Order ID: <strong>#${orderId}</strong></p>
                   </td>
                 </tr>
-
+ 
                 <!-- Content -->
                 <tr>
                   <td style="padding: 20px 40px 40px 40px;">
@@ -146,7 +159,7 @@ async function sendOrderEmail(order, paymentStatus) {
                         ? "Thank you for shopping with NEVR FADE. Your order has been confirmed and is now being prepared for shipping. We'll send you a notification as soon as it's on its way." 
                         : "There was an issue processing your payment. Please use the link below to complete your order and secure your items."}
                     </p>
-
+ 
                     <!-- Order Summary -->
                     <h3 style="margin: 40px 0 15px 0; font-size: 18px; border-bottom: 2px solid #333333; padding-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Order Summary</h3>
                     <table border="0" cellpadding="0" cellspacing="0" width="100%">
@@ -175,23 +188,53 @@ async function sendOrderEmail(order, paymentStatus) {
                         </tr>
                       </tfoot>
                     </table>
-
-                    <!-- Delivery Info -->
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 40px; background-color: #fafafa; border-radius: 4px; border: 1px solid #eeeeee;">
+ 
+                    <!-- Customer & Shipping Details -->
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 40px; border-collapse: collapse;">
                       <tr>
-                        <td style="padding: 20px;">
-                          <h4 style="margin: 0 0 10px 0; text-transform: uppercase; font-size: 12px; color: #888888;">Delivery Address</h4>
-                          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #333333;">
-                            <strong>${name}</strong><br>
-                            ${address}<br>
-                            ${city}, ${state} ${zipCode}<br>
-                            ${country}<br>
-                            Phone: ${phone || 'N/A'}
-                          </p>
+                        <td width="50%" valign="top" style="padding-right: 10px; padding-bottom: 20px;">
+                          <div style="background-color: #fafafa; border: 1px solid #eeeeee; border-radius: 6px; padding: 15px; min-height: 140px;">
+                            <h4 style="margin: 0 0 10px 0; text-transform: uppercase; font-size: 11px; color: #888888; letter-spacing: 0.5px;">Customer Contact</h4>
+                            <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #333333;">
+                              <strong>Name:</strong> ${name}<br>
+                              <strong>Email:</strong> ${email}<br>
+                              <strong>Phone:</strong> ${phone || 'N/A'}
+                            </p>
+                          </div>
+                        </td>
+                        <td width="50%" valign="top" style="padding-left: 10px; padding-bottom: 20px;">
+                          <div style="background-color: #fafafa; border: 1px solid #eeeeee; border-radius: 6px; padding: 15px; min-height: 140px;">
+                            <h4 style="margin: 0 0 10px 0; text-transform: uppercase; font-size: 11px; color: #888888; letter-spacing: 0.5px;">Shipping Address</h4>
+                            <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #333333;">
+                              ${address}<br>
+                              ${city}, ${state} ${zipCode}<br>
+                              ${country || 'India'}
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td width="50%" valign="top" style="padding-right: 10px;">
+                          <div style="background-color: #fafafa; border: 1px solid #eeeeee; border-radius: 6px; padding: 15px; min-height: 80px;">
+                            <h4 style="margin: 0 0 10px 0; text-transform: uppercase; font-size: 11px; color: #888888; letter-spacing: 0.5px;">Payment Info</h4>
+                            <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #333333;">
+                              <strong>Status:</strong> <span style="color: ${isPaid ? '#28a745' : '#dc3545'}; font-weight: bold;">${isPaid ? 'PAID' : 'PENDING'}</span><br>
+                              <strong>Method:</strong> Razorpay Online
+                            </p>
+                          </div>
+                        </td>
+                        <td width="50%" valign="top" style="padding-left: 10px;">
+                          <div style="background-color: #fafafa; border: 1px solid #eeeeee; border-radius: 6px; padding: 15px; min-height: 80px;">
+                            <h4 style="margin: 0 0 10px 0; text-transform: uppercase; font-size: 11px; color: #888888; letter-spacing: 0.5px;">Order Timeline</h4>
+                            <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #333333;">
+                              <strong>Date:</strong> ${new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'long' })}<br>
+                              <strong>Delivery:</strong> 3-5 Business Days
+                            </p>
+                          </div>
                         </td>
                       </tr>
                     </table>
-
+ 
                     ${isPaid ? `
                     <div style="margin-top: 30px; padding: 20px; border: 1px dashed #28a745; background-color: #f6fff8; border-radius: 8px; text-align: center;">
                       <p style="margin: 0 0 15px 0; font-size: 14px; color: #333333;">Need help or have questions about your order?</p>
@@ -206,7 +249,7 @@ async function sendOrderEmail(order, paymentStatus) {
                     </div>`}
                   </td>
                 </tr>
-
+ 
                 <!-- Footer -->
                 <tr>
                   <td align="center" style="padding: 40px; background-color: #1a1a1a; color: #888888; font-size: 12px; line-height: 1.5;">
@@ -224,7 +267,7 @@ async function sendOrderEmail(order, paymentStatus) {
       </html>
     `
   };
-
+ 
   try {
     const isLocal = process.env.SMTP_HOST === 'localhost' || process.env.SMTP_HOST === '127.0.0.1';
     if (!isLocal && (!process.env.SMTP_USER || !process.env.SMTP_PASS)) {
