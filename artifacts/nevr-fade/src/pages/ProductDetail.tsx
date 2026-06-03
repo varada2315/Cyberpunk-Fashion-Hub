@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useCart } from "@/hooks/useCart";
 import { formatINR } from "@/lib/currency";
 import { findFirstAvailableVariant, getVariantStock } from "@/lib/stock";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +15,8 @@ export default function ProductDetail() {
   const [added, setAdded] = useState(false);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
   const { addToCart } = useCart();
   const selectedVariantStock = getVariantStock(product, selectedColor, selectedSize);
   const isOutOfStock = selectedVariantStock !== null && selectedVariantStock <= 0;
@@ -34,6 +37,7 @@ export default function ProductDetail() {
   };
 
   useEffect(() => {
+    setCurrentImageIndex(0);
     const loadProduct = async () => {
       if (id) {
         try {
@@ -80,6 +84,14 @@ export default function ProductDetail() {
       setSelectedSize(firstAvailableSizeForColor);
     }
   }, [product, selectedColor, selectedSize]);
+
+  useEffect(() => {
+    if (!product || !Array.isArray(product.images) || product.images.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % product.images.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [product, currentImageIndex]);
 
   if (loading) {
     return (
@@ -128,22 +140,82 @@ export default function ProductDetail() {
             whileInView={{ x: 0, opacity: 1 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.8 }}
-            className="w-full lg:w-1/2"
+            className="w-full lg:w-1/2 flex flex-col gap-4"
           >
-            <div className="relative aspect-[3/4] overflow-hidden bg-[#1a1a1a] rounded-lg">
-              <img 
-                src={product.image} 
-                alt={product.title}
-                className={`w-full h-full object-cover ${isOutOfStock ? "opacity-40 grayscale" : ""}`}
-              />
+            <div className="relative aspect-[3/4] overflow-hidden bg-[#1a1a1a] rounded-lg group/slider">
+              {Array.isArray(product.images) && product.images.length > 0 ? (
+                product.images.map((imgUrl: string, idx: number) => (
+                  <img 
+                    key={imgUrl}
+                    src={imgUrl} 
+                    alt={`${product.title} - view ${idx + 1}`}
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+                      idx === currentImageIndex ? "opacity-100 z-10" : "opacity-0 z-0"
+                    } ${isOutOfStock ? "opacity-40 grayscale" : ""}`}
+                  />
+                ))
+              ) : (
+                <img 
+                  src={product.image || "/placeholder.png"} 
+                  alt={product.title}
+                  className={`w-full h-full object-cover ${isOutOfStock ? "opacity-40 grayscale" : ""}`}
+                />
+              )}
+
+              {/* Prev / Next buttons */}
+              {Array.isArray(product.images) && product.images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length)}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full border border-white/10 transition-colors opacity-0 group-hover/slider:opacity-100"
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentImageIndex((prev) => (prev + 1) % product.images.length)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full border border-white/10 transition-colors opacity-0 group-hover/slider:opacity-100"
+                    aria-label="Next image"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </button>
+                </>
+              )}
+
               {isOutOfStock && (
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center z-30">
                   <div className="bg-black/80 text-white px-8 py-4 border border-white/20 backdrop-blur-sm rounded-sm">
                     <span className="font-heading text-xl tracking-[0.2em] uppercase">Sold Out</span>
                   </div>
                 </div>
               )}
             </div>
+
+            {/* Thumbnail Navigation */}
+            {Array.isArray(product.images) && product.images.length > 1 && (
+              <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                {product.images.map((imgUrl: string, idx: number) => (
+                  <button
+                    type="button"
+                    key={imgUrl}
+                    onClick={() => setCurrentImageIndex(idx)}
+                    className={`relative w-20 aspect-[3/4] overflow-hidden rounded-md border-2 bg-[#1a1a1a] flex-shrink-0 transition-all ${
+                      idx === currentImageIndex 
+                        ? "border-primary opacity-100 scale-95" 
+                        : "border-transparent opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <img 
+                      src={imgUrl} 
+                      alt={`Thumbnail ${idx + 1}`} 
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </motion.div>
 
           {/* Product Details */}

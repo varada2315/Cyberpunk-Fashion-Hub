@@ -7,6 +7,51 @@ import { useCart } from "@/hooks/useCart";
 import { formatINR } from "@/lib/currency";
 import { getTotalVariantStock, findFirstAvailableVariant } from "@/lib/stock";
 
+function ProductImageSlideshow({ images, title, outOfStock }: { images: string[], title: string, outOfStock: boolean }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (!images || images.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [images]);
+
+  const displayImages = Array.isArray(images) && images.length > 0 ? images : [];
+
+  if (displayImages.length === 0) {
+    return <div className="w-full h-full bg-[#1a1a1a]" />;
+  }
+
+  return (
+    <div className="relative w-full h-full overflow-hidden transition-transform duration-700 group-hover:scale-105">
+      {displayImages.map((imgUrl, index) => (
+        <img
+          key={imgUrl}
+          src={imgUrl}
+          alt={`${title} - image ${index + 1}`}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+            index === currentIndex ? "opacity-100" : "opacity-0"
+          } ${outOfStock ? "opacity-40 grayscale" : ""}`}
+        />
+      ))}
+      {displayImages.length > 1 && (
+        <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-1.5 z-20">
+          {displayImages.map((_, index) => (
+            <div
+              key={index}
+              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                index === currentIndex ? "bg-white scale-125" : "bg-white/40"
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Products() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,10 +150,10 @@ export default function Products() {
                 className="group cursor-pointer flex flex-col transition-transform duration-500 ease-out hover:-translate-y-2"
               >
                 <div className="relative aspect-[3/4] mb-6 overflow-hidden bg-[#1a1a1a]">
-                  <img
-                    src={product.image}
-                    alt={product.title}
-                    className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${outOfStock ? "opacity-40 grayscale" : ""}`}
+                  <ProductImageSlideshow
+                    images={product.images}
+                    title={product.title}
+                    outOfStock={outOfStock}
                   />
                   {outOfStock && (
                     <div className="absolute inset-0 flex items-center justify-center">
