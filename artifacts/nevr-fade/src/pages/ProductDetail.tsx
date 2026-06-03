@@ -30,7 +30,10 @@ export default function ProductDetail() {
     if (normalizedColor === '#faf9f6' || normalizedColor === 'off-white' || normalizedColor === 'off white') {
       return images.filter(img => 
         img.includes('1730') || img.includes('1732') || img.includes('1733') || 
-        img.includes('1738') || img.includes('1742') || img.includes('1753')
+        img.includes('1738') || img.includes('1742') || img.includes('1753') ||
+        img.includes('1791') || img.includes('1794') || img.includes('1796') || 
+        img.includes('1797') || img.includes('1798') || img.includes('1811') || 
+        img.includes('1813')
       );
     }
     if (normalizedColor === '#000000' || normalizedColor === 'black') {
