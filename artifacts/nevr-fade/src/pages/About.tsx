@@ -13,7 +13,7 @@ export default function AboutPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="pt-24"
+        className="pt-36"
       >
         <div className="container px-6 md:px-12 mx-auto">
           <div className="text-center mb-20">

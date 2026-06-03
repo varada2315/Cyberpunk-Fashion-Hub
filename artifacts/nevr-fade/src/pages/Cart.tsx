@@ -108,7 +108,7 @@ export default function Cart() {
     return (
       <main className="min-h-screen bg-background w-full overflow-hidden">
         <Navbar />
-        <div className="container mx-auto px-6 md:px-12 py-16">
+        <div className="container mx-auto px-6 md:px-12 pt-36 pb-16">
           <div className="text-center p-8 bg-secondary rounded-lg max-w-md">
             <h1 className="font-heading text-3xl text-foreground mb-4">Your Cart is Empty</h1>
             <p className="font-sans text-muted-foreground mb-6">
@@ -127,7 +127,7 @@ export default function Cart() {
    return (
      <main className="min-h-screen bg-background w-full overflow-hidden">
        <Navbar />
-       <div className="container mx-auto px-6 md:px-12 py-16">
+       <div className="container mx-auto px-6 md:px-12 pt-36 pb-16">
          <h1 className="font-heading text-4xl text-foreground mb-8">{isPaymentSuccess ? "Order Confirmed" : "Checkout"}</h1>
          
          {isPaymentSuccess ? (
@@ -328,7 +328,7 @@ export default function Cart() {
   return (
     <main className="min-h-screen bg-background w-full overflow-hidden">
       <Navbar />
-      <div className="container mx-auto px-6 md:px-12 py-16">
+      <div className="container mx-auto px-6 md:px-12 pt-36 pb-16">
         <h1 className="font-heading text-4xl text-foreground mb-8">Your Shopping Cart</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">

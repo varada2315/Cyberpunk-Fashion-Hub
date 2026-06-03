@@ -76,17 +76,7 @@ export async function initDatabase() {
     await db.exec('ALTER TABLE orders ADD COLUMN country TEXT DEFAULT "India"');
   }
 
-  // Insert sample products if table is empty
-  const productCount = await db.get('SELECT COUNT(*) as count FROM products');
-  if (productCount.count === 0) {
-    await db.run(`
-      INSERT INTO products (name, description, category, price, variants, images, status)
-      VALUES 
-        ('Cyber Jacket', 'Premium cyberpunk jacket with neon accents', 'Jackets', 199.99, '[{"color":"#000000","size":"S","stock":5},{"color":"#000000","size":"M","stock":3},{"color":"#000000","size":"L","stock":2},{"color":"#FF0000","size":"S","stock":4},{"color":"#FF0000","size":"M","stock":6},{"color":"#FF0000","size":"L","stock":1}]', '["/product-1.png"]', 'Publish'),
-        ('Neon Pants', 'Stylish neon pants for the urban explorer', 'Pants', 129.99, '[{"color":"#000000","size":"S","stock":5},{"color":"#000000","size":"M","stock":3},{"color":"#000000","size":"L","stock":2},{"color":"#0000FF","size":"S","stock":4},{"color":"#0000FF","size":"M","stock":6},{"color":"#0000FF","size":"L","stock":1}]', '["/product-2.png"]', 'Publish'),
-        ('Hologram Hoodie', 'Holographic hoodie with interactive design', 'Hoodies', 179.99, '[{"color":"#000000","size":"S","stock":5},{"color":"#000000","size":"M","stock":3},{"color":"#000000","size":"L","stock":2},{"color":"#FF00FF","size":"S","stock":4},{"color":"#FF00FF","size":"M","stock":6},{"color":"#FF00FF","size":"L","stock":1}]', '["/product-3.png"]', 'Publish')
-    `);
-  }
+
 
   return db;
 }

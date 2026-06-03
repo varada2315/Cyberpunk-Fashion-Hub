@@ -78,7 +78,7 @@ export default function Products() {
   return (
     <main className="min-h-screen bg-background w-full overflow-hidden">
       <Navbar />
-      <div className="container mx-auto px-6 md:px-12 py-16 pt-24">
+      <div className="container mx-auto px-6 md:px-12 py-16 pt-36">
         <motion.div
           initial={{ y: 40, opacity: 0 }}
           whileInView={{ y: 0, opacity: 1 }}
@@ -108,12 +108,19 @@ export default function Products() {
                   <img
                     src={product.image}
                     alt={product.title}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${outOfStock ? "opacity-40 grayscale" : ""}`}
                   />
+                  {outOfStock && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-black/80 text-white px-6 py-3 border border-white/20 backdrop-blur-sm rounded-sm">
+                        <span className="font-heading text-lg tracking-widest uppercase">Sold Out</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="flex flex-col gap-2 pb-4 border-b-2 border-transparent transition-colors duration-300 group-hover:border-accent">
+                <div className={`flex flex-col gap-2 pb-4 border-b-2 border-transparent transition-colors duration-300 ${outOfStock ? "" : "group-hover:border-accent"}`}>
                   <span className="font-sans text-xs tracking-widest text-muted-foreground">{product.category}</span>
-                  <h3 className="font-heading text-2xl tracking-wide text-foreground">{product.title}</h3>
+                  <h3 className={`font-heading text-2xl tracking-wide ${outOfStock ? "text-muted-foreground" : "text-foreground"}`}>{product.title}</h3>
                   <p className="font-sans text-sm text-muted-foreground mt-2 line-clamp-2">{product.description}</p>
                   <div className="flex justify-between items-center mt-4">
                     <span className="font-heading text-lg text-foreground">{formatINR(product.price)}</span>

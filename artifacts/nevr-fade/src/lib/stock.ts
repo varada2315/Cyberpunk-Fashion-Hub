@@ -13,8 +13,7 @@ export const normalizeStockQuantity = (value: unknown) => {
 };
 
 export const hasVariantStockMap = (product?: VariantProductLike | null) => {
-  if (!product || !product.stockByVariant || typeof product.stockByVariant !== "object") return false;
-  return Object.keys(product.stockByVariant).length > 0;
+  return Boolean(product && product.stockByVariant && typeof product.stockByVariant === "object");
 };
 
 export const getVariantStock = (
@@ -29,7 +28,9 @@ export const getVariantStock = (
 
 export const getTotalVariantStock = (product: VariantProductLike | null | undefined): number | null => {
   if (!hasVariantStockMap(product)) return null;
-  return Object.values(product?.stockByVariant || {}).reduce((sum, qty) => sum + normalizeStockQuantity(qty), 0);
+  const values = Object.values(product?.stockByVariant || {});
+  if (values.length === 0) return 0;
+  return values.reduce((sum, qty) => sum + normalizeStockQuantity(qty), 0);
 };
 
 export const findFirstAvailableVariant = (

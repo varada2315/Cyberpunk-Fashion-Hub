@@ -109,7 +109,7 @@ export default function ProductDetail() {
   return (
     <main className="min-h-screen bg-background w-full overflow-hidden">
       <Navbar />
-      <div className="container mx-auto px-6 md:px-12 py-16 pt-24">
+      <div className="container mx-auto px-6 md:px-12 py-16 pt-36">
         <motion.div 
           initial={{ y: 40, opacity: 0 }}
           whileInView={{ y: 0, opacity: 1 }}
@@ -134,8 +134,15 @@ export default function ProductDetail() {
               <img 
                 src={product.image} 
                 alt={product.title}
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover ${isOutOfStock ? "opacity-40 grayscale" : ""}`}
               />
+              {isOutOfStock && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="bg-black/80 text-white px-8 py-4 border border-white/20 backdrop-blur-sm rounded-sm">
+                    <span className="font-heading text-xl tracking-[0.2em] uppercase">Sold Out</span>
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
 
@@ -167,9 +174,22 @@ export default function ProductDetail() {
                   >
                     {isOutOfStock ? "Out of Stock" : added ? "Added" : "Add to Cart"}
                   </button>
-                 <button className="px-8 py-4 rounded-full text-lg font-medium tracking-wide uppercase transition-colors border border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-                   Buy Now
-                 </button>
+                  <button 
+                    type="button"
+                    disabled={!canAddToCart}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      // Buy Now logic: Add to cart and redirect
+                      if (canAddToCart) {
+                        handleAddToCart(product);
+                        window.location.href = '/cart';
+                      }
+                    }}
+                    className="px-8 py-4 rounded-full text-lg font-medium tracking-wide uppercase transition-colors border border-primary text-primary hover:bg-primary hover:text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Buy Now
+                  </button>
                </div>
 
                <div className="mb-8">

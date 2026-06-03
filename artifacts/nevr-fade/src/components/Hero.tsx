@@ -6,7 +6,7 @@ export default function Hero() {
     <section className="relative h-screen w-full overflow-hidden flex items-center justify-center">
       {/* Background image */}
       <div
-        className="absolute inset-0 bg-center bg-cover bg-no-repeat"
+        className="absolute inset-0 bg-top bg-cover bg-no-repeat"
         style={{ backgroundImage: "url('/1776696793600 (1).png')" }}
       />
       {/* Dark gradient overlay — keeps text sharp and premium */}

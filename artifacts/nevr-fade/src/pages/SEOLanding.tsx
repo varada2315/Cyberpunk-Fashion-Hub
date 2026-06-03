@@ -13,7 +13,7 @@ export default function SEOLanding() {
       <Navbar />
       
       {/* Hero Section for SEO page */}
-      <section className="pt-32 pb-16 px-6 md:px-12 max-w-5xl mx-auto w-full">
+      <section className="pt-36 pb-16 px-6 md:px-12 max-w-5xl mx-auto w-full">
         <div className="space-y-6 text-center">
           <Badge className="bg-black text-white hover:bg-black uppercase tracking-widest text-xs px-4 py-1">
             Brand Identity
