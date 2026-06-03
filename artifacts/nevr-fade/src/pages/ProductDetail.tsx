@@ -22,6 +22,29 @@ export default function ProductDetail() {
   const isOutOfStock = selectedVariantStock !== null && selectedVariantStock <= 0;
   const canAddToCart = Boolean(selectedColor && selectedSize) && !isOutOfStock;
 
+  const getFilteredImages = (images: string[], color: string | null) => {
+    if (!images || !Array.isArray(images)) return [];
+    if (!color) return images;
+
+    const normalizedColor = color.toLowerCase();
+    if (normalizedColor === '#faf9f6' || normalizedColor === 'off-white' || normalizedColor === 'off white') {
+      return images.filter(img => 
+        img.includes('1730') || img.includes('1732') || img.includes('1733') || 
+        img.includes('1738') || img.includes('1742') || img.includes('1753')
+      );
+    }
+    if (normalizedColor === '#000000' || normalizedColor === 'black') {
+      return images.filter(img => 
+        img.includes('1728') || img.includes('1745') || img.includes('1748') || 
+        img.includes('1749') || img.includes('1754') || img.includes('1755') || 
+        img.includes('1760') || img.includes('1764')
+      );
+    }
+    return images;
+  };
+
+  const filteredImages = getFilteredImages(product?.images, selectedColor);
+
   const handleAddToCart = (item: any) => {
     if (!canAddToCart) return;
 
@@ -86,12 +109,16 @@ export default function ProductDetail() {
   }, [product, selectedColor, selectedSize]);
 
   useEffect(() => {
-    if (!product || !Array.isArray(product.images) || product.images.length <= 1) return;
+    setCurrentImageIndex(0);
+  }, [selectedColor]);
+
+  useEffect(() => {
+    if (!product || !Array.isArray(filteredImages) || filteredImages.length <= 1) return;
     const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % product.images.length);
+      setCurrentImageIndex((prev) => (prev + 1) % filteredImages.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, [product, currentImageIndex]);
+  }, [product, filteredImages, currentImageIndex]);
 
   if (loading) {
     return (
@@ -143,8 +170,8 @@ export default function ProductDetail() {
             className="w-full lg:w-1/2 flex flex-col gap-4"
           >
             <div className="relative aspect-[3/4] overflow-hidden bg-[#1a1a1a] rounded-lg group/slider">
-              {Array.isArray(product.images) && product.images.length > 0 ? (
-                product.images.map((imgUrl: string, idx: number) => (
+              {Array.isArray(filteredImages) && filteredImages.length > 0 ? (
+                filteredImages.map((imgUrl: string, idx: number) => (
                   <img 
                     key={imgUrl}
                     src={imgUrl} 
@@ -163,11 +190,11 @@ export default function ProductDetail() {
               )}
 
               {/* Prev / Next buttons */}
-              {Array.isArray(product.images) && product.images.length > 1 && (
+              {Array.isArray(filteredImages) && filteredImages.length > 1 && (
                 <>
                   <button
                     type="button"
-                    onClick={() => setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length)}
+                    onClick={() => setCurrentImageIndex((prev) => (prev - 1 + filteredImages.length) % filteredImages.length)}
                     className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full border border-white/10 transition-colors opacity-0 group-hover/slider:opacity-100"
                     aria-label="Previous image"
                   >
@@ -175,7 +202,7 @@ export default function ProductDetail() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCurrentImageIndex((prev) => (prev + 1) % product.images.length)}
+                    onClick={() => setCurrentImageIndex((prev) => (prev + 1) % filteredImages.length)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full border border-white/10 transition-colors opacity-0 group-hover/slider:opacity-100"
                     aria-label="Next image"
                   >
@@ -194,9 +221,9 @@ export default function ProductDetail() {
             </div>
 
             {/* Thumbnail Navigation */}
-            {Array.isArray(product.images) && product.images.length > 1 && (
+            {Array.isArray(filteredImages) && filteredImages.length > 1 && (
               <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-                {product.images.map((imgUrl: string, idx: number) => (
+                {filteredImages.map((imgUrl: string, idx: number) => (
                   <button
                     type="button"
                     key={imgUrl}
