@@ -1,5 +1,15 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { adminLogin, fetchAdminProducts, createAdminProduct, updateAdminProduct, deleteAdminProduct } from '@/lib/products';
+import { 
+  adminLogin, 
+  fetchAdminProducts, 
+  createAdminProduct, 
+  updateAdminProduct, 
+  deleteAdminProduct,
+  fetchAdminCoupons,
+  createAdminCoupon,
+  deleteAdminCoupon,
+  Coupon
+} from '@/lib/products';
 
 interface AdminContextType {
   isAuthenticated: boolean;
@@ -12,6 +22,10 @@ interface AdminContextType {
   deleteProduct: (id: number) => Promise<void>;
   orders: any[];
   fetchOrders: () => Promise<void>;
+  coupons: Coupon[];
+  fetchCoupons: () => Promise<void>;
+  createCoupon: (payload: { code: string; discountPercent: number }) => Promise<Coupon>;
+  deleteCoupon: (id: number) => Promise<void>;
   loading: boolean;
   error: string | null;
   requestPasswordChangeOtp: (newPassword: string) => Promise<boolean>;
@@ -179,12 +193,66 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
   };
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+
+  const fetchCoupons = async () => {
+    if (!token) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const fetchedCoupons = await fetchAdminCoupons(token);
+      setCoupons(fetchedCoupons);
+    } catch (err: any) {
+      if (err.status === 401) {
+        logout();
+        return;
+      }
+      setError('Failed to fetch coupons');
+      console.error('Failed to fetch coupons:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createCoupon = async (payload: { code: string; discountPercent: number }) => {
+    if (!token) throw new Error('Not authenticated');
+    try {
+      const newCoupon = await createAdminCoupon(token, payload);
+      setCoupons(prev => [newCoupon, ...prev]);
+      return newCoupon;
+    } catch (err: any) {
+      if (err.status === 401) {
+        logout();
+      }
+      throw err;
+    }
+  };
+
+  const deleteCoupon = async (id: number) => {
+    if (!token) return;
+    try {
+      await deleteAdminCoupon(token, id);
+      setCoupons(prev => prev.filter(c => c.id !== id));
+    } catch (err: any) {
+      if (err.status === 401) {
+        logout();
+      }
+      throw err;
+    }
+  };
+  
+  // Clear coupons when logging out
+  const originalLogout = logout;
+  const newLogout = () => {
+    setCoupons([]);
+    originalLogout();
+  };
 
   return (
     <AdminContext.Provider value={{
       isAuthenticated,
       login,
-      logout,
+      logout: newLogout,
       products,
       fetchProducts,
       createProduct,
@@ -192,6 +260,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       deleteProduct,
       orders,
       fetchOrders,
+      coupons,
+      fetchCoupons,
+      createCoupon,
+      deleteCoupon,
       loading,
       error,
       requestPasswordChangeOtp,

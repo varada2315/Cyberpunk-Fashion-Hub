@@ -75,8 +75,50 @@ export async function initDatabase() {
   if (!columnNames.includes('country')) {
     await db.exec('ALTER TABLE orders ADD COLUMN country TEXT DEFAULT "India"');
   }
+  if (!columnNames.includes('paymentMethod')) {
+    await db.exec('ALTER TABLE orders ADD COLUMN paymentMethod TEXT DEFAULT "Prepaid"');
+  }
+  if (!columnNames.includes('couponCode')) {
+    await db.exec('ALTER TABLE orders ADD COLUMN couponCode TEXT');
+  }
+  if (!columnNames.includes('discountAmount')) {
+    await db.exec('ALTER TABLE orders ADD COLUMN discountAmount REAL DEFAULT 0');
+  }
 
+  // Create coupons table
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS coupons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE NOT NULL,
+      discountPercent REAL NOT NULL,
+      status TEXT DEFAULT 'Active',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
+  // Add missing columns to products table if they don't exist
+  const productColumns = await db.all("PRAGMA table_info(products)");
+  const productColumnNames = productColumns.map(c => c.name);
+  if (!productColumnNames.includes('colorImages')) {
+    await db.exec('ALTER TABLE products ADD COLUMN colorImages TEXT');
+  }
+
+  // Create reviews table
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      productId INTEGER NOT NULL,
+      authorName TEXT NOT NULL,
+      rating INTEGER NOT NULL,
+      comment TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (productId) REFERENCES products(id) ON DELETE CASCADE
+    )
+  `);
+
+  await db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(productId)
+  `);
 
   return db;
 }

@@ -147,59 +147,63 @@ export default function Products() {
                 whileInView={{ y: 0, opacity: 1 }}
                 viewport={{ once: true, margin: "-100px" }}
                 transition={{ duration: 0.8, delay: index * 0.2 }}
-                className="group cursor-pointer flex flex-col transition-transform duration-500 ease-out hover:-translate-y-2"
+                className="group cursor-pointer flex flex-col h-full bg-secondary/30 border border-primary/10 hover:border-primary/30 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_rgba(245,240,235,0.02)]"
               >
-                <div className="relative aspect-[3/4] mb-6 overflow-hidden bg-[#1a1a1a]">
+                {/* Image Section */}
+                <Link href={`/product/${product.id}`} className="block relative aspect-[3/4] overflow-hidden bg-[#1a1a1a]">
                   <ProductImageSlideshow
                     images={product.images}
                     title={product.title}
                     outOfStock={outOfStock}
                   />
                   {outOfStock && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="bg-black/80 text-white px-6 py-3 border border-white/20 backdrop-blur-sm rounded-sm">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-30">
+                      <div className="bg-black/90 text-white px-6 py-3 border border-white/20 backdrop-blur-sm rounded-sm">
                         <span className="font-heading text-lg tracking-widest uppercase">Sold Out</span>
                       </div>
                     </div>
                   )}
-                </div>
-                <div className={`flex flex-col gap-2 pb-4 border-b-2 border-transparent transition-colors duration-300 ${outOfStock ? "" : "group-hover:border-accent"}`}>
-                  <span className="font-sans text-xs tracking-widest text-muted-foreground">{product.category}</span>
-                  <h3 className={`font-heading text-2xl tracking-wide ${outOfStock ? "text-muted-foreground" : "text-foreground"}`}>{product.title}</h3>
-                  <p className="font-sans text-sm text-muted-foreground mt-2 line-clamp-2">{product.description}</p>
-                  <div className="flex justify-between items-center mt-4">
-                    <span className="font-heading text-lg text-foreground">{formatINR(product.price)}</span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={outOfStock}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          handleAddToCart(product);
-                        }}
-                        className="relative z-10 pointer-events-auto px-4 py-2 rounded-full text-sm font-medium tracking-wide uppercase transition-colors bg-[#F5F0EB] text-[#0D0D0D] hover:bg-[#C8B89A] disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {outOfStock ? "Out of Stock" : addedProductId === product.id ? "Added" : "Add to Cart"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={outOfStock}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          handleBuyNow(product);
-                        }}
-                        className="relative z-10 pointer-events-auto px-4 py-2 rounded-full text-sm font-medium tracking-wide uppercase transition-colors bg-[#0D0D0D] text-[#F5F0EB] hover:bg-[#C8B89A] disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Buy Now
-                      </button>
-                      <Link href={`/product/${product.id}`}>
-                        <button className="px-4 py-2 rounded-full text-sm font-medium tracking-wide uppercase transition-colors bg-[#0D0D0D] text-[#F5F0EB] hover:bg-[#C8B89A]">
-                          View Details
-                        </button>
-                      </Link>
-                    </div>
+                </Link>
+
+                {/* Details Section */}
+                <div className="flex flex-col flex-grow p-6 gap-2">
+                  <div className="flex justify-between items-start gap-4">
+                    <span className="font-sans text-xs tracking-widest text-muted-foreground uppercase">{product.category}</span>
+                    <span className="font-heading text-lg text-primary">{formatINR(product.price)}</span>
+                  </div>
+                  <Link href={`/product/${product.id}`} className="hover:text-primary transition-colors block">
+                    <h3 className={`font-heading text-2xl tracking-wide ${outOfStock ? "text-muted-foreground" : "text-foreground"}`}>
+                      {product.title}
+                    </h3>
+                  </Link>
+                  <p className="font-sans text-sm text-muted-foreground mt-2 line-clamp-2 flex-grow">{product.description}</p>
+                  
+                  {/* Actions Section */}
+                  <div className="flex gap-3 mt-6 pt-4 border-t border-primary/10">
+                    <button
+                      type="button"
+                      disabled={outOfStock}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleAddToCart(product);
+                      }}
+                      className="flex-1 px-4 py-3 rounded-full text-xs font-semibold tracking-wide uppercase transition-all duration-300 bg-[#F5F0EB] text-[#0D0D0D] hover:bg-[#C8B89A] disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                    >
+                      {outOfStock ? "Sold Out" : addedProductId === product.id ? "Added" : "Add to Cart"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={outOfStock}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleBuyNow(product);
+                      }}
+                      className="flex-1 px-4 py-3 rounded-full text-xs font-semibold tracking-wide uppercase transition-all duration-300 bg-[#0D0D0D] text-[#F5F0EB] border border-[#F5F0EB]/20 hover:bg-[#F5F0EB]/10 disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                    >
+                      Buy Now
+                    </button>
                   </div>
                 </div>
               </motion.div>

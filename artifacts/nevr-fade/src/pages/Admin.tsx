@@ -49,6 +49,13 @@ import {
 
 const ALL_SIZES = ["S", "M", "L", "XL", "XXL"];
 
+interface ColorConfig {
+  id: string;
+  color: string;
+  images: string[];
+  stock: Record<string, number>;
+}
+
 export default function Admin() {
   const {
     isAuthenticated,
@@ -61,6 +68,10 @@ export default function Admin() {
     deleteProduct,
     orders,
     fetchOrders,
+    coupons,
+    fetchCoupons,
+    createCoupon,
+    deleteCoupon,
     loading,
     error,
     requestPasswordChangeOtp,
@@ -85,6 +96,20 @@ export default function Admin() {
     stockByVariant: {} as Record<string, number>
   });
 
+  const [colorConfigs, setColorConfigs] = useState<ColorConfig[]>([
+    {
+      id: "initial",
+      color: "#000000",
+      images: [],
+      stock: ALL_SIZES.reduce((acc, s) => ({ ...acc, [s]: 0 }), {})
+    }
+  ]);
+
+  // Coupon State
+  const [couponCodeInput, setCouponCodeInput] = useState("");
+  const [couponPercentInput, setCouponPercentInput] = useState<number>(0);
+  const [couponLoading, setCouponLoading] = useState(false);
+
   const [imageUrlInput, setImageUrlInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -96,7 +121,10 @@ export default function Admin() {
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newAdminPassword.length < 6) return toast.error("Password must be at least 6 characters.");
+    if (newAdminPassword.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
     setSecurityLoading(true);
     const success = await requestPasswordChangeOtp(newAdminPassword);
     setSecurityLoading(false);
@@ -125,6 +153,7 @@ export default function Admin() {
     if (isAuthenticated) {
       fetchProducts();
       fetchOrders();
+      fetchCoupons();
     }
   }, [isAuthenticated]);
 
@@ -136,31 +165,54 @@ export default function Admin() {
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (formData.images.length === 0) {
-      alert("Please add at least one product image.");
+    if (colorConfigs.length === 0) {
+      alert("Please add at least one color option configuration.");
       return;
     }
 
-    // Capture all sizes that have stock > 0
-    const activeSizes = ALL_SIZES.filter(s => (formData.stockByVariant[`Default::${s}`] || 0) > 0);
-    
-    const colors = ['Default'];
-    const variants = colors.flatMap(color => 
+    for (const config of colorConfigs) {
+      if (!config.color.trim()) {
+        alert("Please specify a color name or hex code for all color configs.");
+        return;
+      }
+      if (config.images.length === 0) {
+        alert(`Please upload or add at least one image for the color "${config.color}".`);
+        return;
+      }
+    }
+
+    const variants = colorConfigs.flatMap(config => 
       ALL_SIZES.map(size => ({
-        color,
+        color: config.color.trim(),
         size,
-        stock: formData.stockByVariant[`${color}::${size}`] || 0
+        stock: config.stock[size] || 0
       }))
     );
 
+    const activeColors = Array.from(new Set(colorConfigs.map(c => c.color.trim())));
+    const activeSizes = ALL_SIZES.filter(size => 
+      colorConfigs.some(config => (config.stock[size] || 0) > 0)
+    );
+
+    const colorImgMap: Record<string, string[]> = {};
+    colorConfigs.forEach(config => {
+      colorImgMap[config.color.trim()] = config.images;
+    });
+
+    const allImages = Array.from(new Set(colorConfigs.flatMap(config => config.images)));
+
     const payload = {
-      ...formData,
+      title: formData.title,
       name: formData.title,
+      category: formData.category,
+      description: formData.description,
       price: parseFloat(formData.price),
-      sizes: activeSizes, // Only active sizes for the frontend filter
+      sizes: activeSizes,
+      colors: activeColors,
       variants: variants,
-      image: formData.images[0],
-      images: formData.images
+      image: allImages[0] || "",
+      images: allImages,
+      colorImages: colorImgMap
     };
 
     try {
@@ -187,19 +239,55 @@ export default function Admin() {
       images: [],
       colors: [],
       sizes: [],
-      stockByVariant: ALL_SIZES.reduce((acc, s) => ({ ...acc, [`Default::${s}`]: 0 }), {})
+      stockByVariant: {}
     });
+    setColorConfigs([
+      {
+        id: Math.random().toString(),
+        color: "#000000",
+        images: [],
+        stock: ALL_SIZES.reduce((acc, s) => ({ ...acc, [s]: 0 }), {})
+      }
+    ]);
   };
 
   const startEdit = (product: any) => {
     setEditingId(product.id);
     
-    // Ensure all sizes are represented in stockByVariant
-    const stockMap = { ...product.stockByVariant };
-    ALL_SIZES.forEach(s => {
-       if (stockMap[`Default::${s}`] === undefined) {
-          stockMap[`Default::${s}`] = 0;
-       }
+    let colorImgMap: Record<string, string[]> = {};
+    if (product.colorImages) {
+      try {
+        colorImgMap = typeof product.colorImages === 'string'
+          ? JSON.parse(product.colorImages)
+          : product.colorImages;
+      } catch (e) {
+        console.error("Error parsing product.colorImages in startEdit:", e);
+      }
+    }
+    
+    const uniqueColors = product.colors && product.colors.length > 0
+      ? product.colors
+      : ['Default'];
+      
+    const configs: ColorConfig[] = uniqueColors.map((color: string) => {
+      const stockMap: Record<string, number> = {};
+      ALL_SIZES.forEach(s => {
+        stockMap[s] = product.stockByVariant[`${color}::${s}`] !== undefined
+          ? (product.stockByVariant[`${color}::${s}`] || 0)
+          : (product.stockByVariant[`Default::${s}`] || 0);
+      });
+      
+      let colorImages = colorImgMap[color] || [];
+      if (colorImages.length === 0) {
+        colorImages = Array.isArray(product.images) ? product.images : [];
+      }
+      
+      return {
+        id: Math.random().toString(),
+        color: color,
+        images: colorImages,
+        stock: stockMap
+      };
     });
 
     setFormData({
@@ -208,106 +296,95 @@ export default function Admin() {
       category: product.category || "",
       description: product.description || "",
       price: (product.price || 0).toString(),
-      images: Array.isArray(product.images) ? product.images : (product.image ? [product.image] : []),
+      images: Array.isArray(product.images) ? product.images : [],
       colors: product.colors || [],
       sizes: product.sizes || [],
-      stockByVariant: stockMap
+      stockByVariant: {}
     });
+    setColorConfigs(configs);
     setActiveTab("products");
   };
 
-  const addImage = () => {
-    if (imageUrlInput && !formData.images.includes(imageUrlInput)) {
-      setFormData({ ...formData, images: [...formData.images, imageUrlInput] });
-      setImageUrlInput("");
-    }
-  };
+  const handleColorImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, configId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const removeImage = (index: number) => {
-    setFormData({
-      ...formData,
-      images: formData.images.filter((_, i) => i !== index)
-    });
-  };
-
-  const updateStock = (size: string, delta: number) => {
-    const key = `Default::${size}`;
-    const current = formData.stockByVariant[key] || 0;
-    const next = Math.max(0, current + delta);
-    setFormData({
-      ...formData,
-      stockByVariant: { ...formData.stockByVariant, [key]: next }
-    });
-  };
-
-  const [uploading, setUploading] = useState(false);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setUploading(true);
-    const newImages = [...formData.images];
+    const localUrl = URL.createObjectURL(file);
     
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      
-      // Create a local preview immediately
-      const localUrl = URL.createObjectURL(file);
-      
-      // We'll temporarily add the local URL to the images list
-      // This gives instant feedback
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, localUrl]
-      }));
+    // Show local preview immediately
+    setColorConfigs(prev => prev.map(c => 
+      c.id === configId ? { ...c, images: [...c.images, localUrl] } : c
+    ));
 
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64 = event.target?.result as string;
-        try {
-          const response = await fetch('/api/upload', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-            },
-            body: JSON.stringify({ image: base64 })
-          });
-          
-          const result = await response.json();
-          if (result.url) {
-            // Replace the local preview URL with the real server URL
-            setFormData(prev => ({
-              ...prev,
-              images: prev.images.map(img => img === localUrl ? result.url : img)
-            }));
-          } else {
-             // If no URL returned, remove the local preview
-             setFormData(prev => ({
-               ...prev,
-               images: prev.images.filter(img => img !== localUrl)
-             }));
-             alert("Upload failed for " + file.name);
-          }
-        } catch (err) {
-          console.error("Upload failed", err);
-          // Remove the failed preview
-          setFormData(prev => ({
-            ...prev,
-            images: prev.images.filter(img => img !== localUrl)
-          }));
-          alert("Failed to upload " + file.name);
-        } finally {
-          // Check if all files in this batch are done (simplified)
-          if (i === files.length - 1) setUploading(false);
-          URL.revokeObjectURL(localUrl);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      try {
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          },
+          body: JSON.stringify({ image: base64 })
+        });
+
+        const result = await response.json();
+        if (result.url) {
+          setColorConfigs(prev => prev.map(c => 
+            c.id === configId 
+              ? { ...c, images: c.images.map(img => img === localUrl ? result.url : img) }
+              : c
+          ));
+          toast.success("Color asset uploaded successfully");
+        } else {
+          throw new Error("Upload failed");
         }
-      };
-      
-      reader.readAsDataURL(file);
+      } catch (err) {
+        toast.error("Failed to upload color asset");
+        setColorConfigs(prev => prev.map(c => 
+          c.id === configId ? { ...c, images: c.images.filter(img => img !== localUrl) } : c
+        ));
+      } finally {
+        URL.revokeObjectURL(localUrl);
+      }
+    };
+    reader.readAsDataURL(file);
+    
+    // Clear input
+    e.target.value = "";
+  };
+
+  const handleCreateCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponCodeInput.trim() || couponPercentInput <= 0 || couponPercentInput > 100) {
+      toast.error("Please provide a valid coupon code and percentage.");
+      return;
     }
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setCouponLoading(true);
+    try {
+      await createCoupon({
+        code: couponCodeInput.toUpperCase().trim(),
+        discountPercent: couponPercentInput
+      });
+      toast.success(`Coupon code ${couponCodeInput.toUpperCase()} generated successfully!`);
+      setCouponCodeInput("");
+      setCouponPercentInput(0);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate coupon code.");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleDeleteCoupon = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this coupon?")) return;
+    try {
+      await deleteCoupon(id);
+      toast.success("Coupon code deleted.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete coupon code.");
+    }
   };
 
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -316,7 +393,10 @@ export default function Admin() {
 
   const handleForgotRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newAdminPassword.length < 6) return toast.error("Password must be at least 6 characters.");
+    if (newAdminPassword.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
     setSecurityLoading(true);
     try {
       const { requestAdminForgotPasswordOtp } = await import('@/lib/products');
@@ -483,9 +563,12 @@ export default function Admin() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="bg-zinc-100/80 p-1 rounded-2xl flex max-w-[300px] backdrop-blur-sm">
+          <TabsList className="bg-zinc-100/80 p-1 rounded-2xl flex max-w-[400px] backdrop-blur-sm">
             <TabsTrigger value="products" className="flex-1 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all gap-2 py-3 text-xs font-bold uppercase tracking-widest">
               Inventory
+            </TabsTrigger>
+            <TabsTrigger value="coupons" className="flex-1 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all gap-2 py-3 text-xs font-bold uppercase tracking-widest text-zinc-600">
+              Coupons
             </TabsTrigger>
             <TabsTrigger value="security" className="flex-1 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all gap-2 py-3 text-xs font-bold uppercase tracking-widest text-zinc-600">
               Security
@@ -540,111 +623,158 @@ export default function Admin() {
                               </div>
                            </div>
 
-                           <div className="space-y-4">
-                              <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em]">Visual Assets (Images)</label>
-                              <div className="flex gap-2">
-                                 <Input 
-                                    value={imageUrlInput}
-                                    onChange={(e) => setImageUrlInput(e.target.value)}
-                                    placeholder="Paste Image URL"
-                                    className="h-11 border-zinc-100 rounded-xl"
-                                 />
-                                 <Button type="button" onClick={addImage} className="bg-zinc-900 rounded-xl px-4">
-                                    <Plus className="w-5 h-5" />
-                                 </Button>
-                                 <input 
-                                    type="file" 
-                                    ref={fileInputRef} 
-                                    className="hidden" 
-                                    onChange={handleFileUpload} 
-                                    multiple 
-                                    accept="image/*"
-                                 />
-                                 <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="rounded-xl border-zinc-200">
-                                    <Upload className="w-5 h-5" />
-                                 </Button>
+                              <div className="space-y-6">
+                              <div className="flex justify-between items-center border-b border-zinc-100 pb-2">
+                                <label className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">Color Options ({colorConfigs.length})</label>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setColorConfigs(prev => [
+                                      ...prev,
+                                      {
+                                        id: Math.random().toString(),
+                                        color: "",
+                                        images: [],
+                                        stock: ALL_SIZES.reduce((acc, s) => ({ ...acc, [s]: 0 }), {})
+                                      }
+                                    ]);
+                                  }}
+                                  className="rounded-xl border-zinc-100 hover:bg-zinc-50 text-[10px] font-bold uppercase tracking-widest px-3 h-8 flex gap-1"
+                                >
+                                  <Plus className="w-3 h-3" /> Add Color
+                                </Button>
                               </div>
-                              <div className="grid grid-cols-4 gap-3">
-                                 {formData.images.map((url, i) => {
-                                    const isLocal = url.startsWith('blob:');
-                                    return (
-                                       <div key={i} className={`aspect-square rounded-xl overflow-hidden bg-zinc-100 relative group ${isLocal ? 'opacity-70' : ''}`}>
-                                          <img src={url} className="w-full h-full object-cover" />
-                                          {isLocal && (
-                                             <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                                                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                             </div>
-                                          )}
-                                          {!isLocal && (
-                                             <button 
-                                                type="button"
-                                                onClick={() => removeImage(i)}
-                                                className="absolute inset-0 bg-red-500/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
-                                             >
-                                                <Trash2 className="w-5 h-5" />
-                                             </button>
-                                          )}
-                                          {i === 0 && <Badge className="absolute top-1 left-1 bg-black/50 text-white border-none text-[8px] px-1 py-0">MAIN</Badge>}
-                                       </div>
-                                    );
-                                 })}
-                                 {formData.images.length === 0 && (
-                                    <div className="col-span-4 py-8 border-2 border-dashed border-zinc-100 rounded-2xl flex flex-col items-center justify-center text-zinc-300">
-                                       <ImageIcon className="w-8 h-8 mb-2" />
-                                       <span className="text-[10px] font-bold uppercase tracking-widest">No Imagery Found</span>
-                                    </div>
-                                 )}
-                              </div>
-                           </div>
 
-                           <div className="bg-zinc-50/50 p-6 rounded-3xl border border-zinc-100 space-y-6">
-                              <h4 className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em]">Set Units Per Size</h4>
-                              <div className="grid grid-cols-1 gap-4">
-                                 {ALL_SIZES.map(s => {
-                                    const key = `Default::${s}`;
-                                    const qty = formData.stockByVariant[key] || 0;
-                                    return (
-                                       <div key={s} className="flex items-center justify-between bg-white p-4 rounded-2xl border border-zinc-50 shadow-sm">
-                                          <div className="flex items-center gap-4">
-                                             <div className="w-10 h-10 rounded-xl bg-zinc-900 text-white flex items-center justify-center font-bold text-sm">
-                                                {s}
-                                             </div>
-                                             <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Size {s}</span>
-                                          </div>
-                                          <div className="flex items-center gap-3">
-                                             <Button 
+                              <div className="space-y-8">
+                                {colorConfigs.map((config, index) => (
+                                  <div key={config.id} className="p-6 rounded-3xl border border-zinc-100 bg-zinc-50/50 space-y-6 relative group/card">
+                                    {/* Remove Color Option Button */}
+                                    {colorConfigs.length > 1 && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => {
+                                          setColorConfigs(prev => prev.filter(c => c.id !== config.id));
+                                        }}
+                                        className="absolute top-4 right-4 rounded-full text-red-500 hover:text-red-700 hover:bg-red-50 w-8 h-8 opacity-0 group-hover/card:opacity-100 transition-opacity"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </Button>
+                                    )}
+
+                                    {/* Color Name Input */}
+                                    <div className="space-y-2">
+                                      <label className="text-[9px] font-black uppercase text-zinc-400 tracking-wider">Color Value (Hex/Name)</label>
+                                      <div className="flex items-center gap-3">
+                                        <div 
+                                          className="w-8 h-8 rounded-full border border-zinc-200 flex-shrink-0 transition-all shadow-sm"
+                                          style={{ 
+                                            backgroundColor: config.color.toLowerCase() === 'default' 
+                                              ? 'transparent' 
+                                              : (config.color.trim() || 'transparent')
+                                          }} 
+                                        />
+                                        <Input
+                                          placeholder="e.g. #000000 or Black"
+                                          value={config.color}
+                                          onChange={(e) => {
+                                            setColorConfigs(prev => prev.map(c => 
+                                              c.id === config.id ? { ...c, color: e.target.value } : c
+                                            ));
+                                          }}
+                                          className="rounded-xl bg-white border-zinc-200 h-9 text-xs"
+                                          required
+                                        />
+                                      </div>
+                                    </div>
+
+                                    {/* Color Images Upload */}
+                                    <div className="space-y-3">
+                                      <div className="flex justify-between items-center">
+                                        <label className="text-[9px] font-black uppercase text-zinc-400 tracking-wider">Color Assets (Images)</label>
+                                        <div>
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            id={`file-input-${config.id}`}
+                                            onChange={(e) => handleColorImageUpload(e, config.id)}
+                                            className="hidden"
+                                          />
+                                          <label
+                                            htmlFor={`file-input-${config.id}`}
+                                            className="cursor-pointer inline-flex items-center gap-1 bg-white hover:bg-zinc-50 border border-zinc-100 rounded-xl px-3 py-1.5 text-[9px] font-black uppercase tracking-widest shadow-sm transition-all"
+                                          >
+                                            <Upload className="w-3 h-3" /> Upload File
+                                          </label>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="grid grid-cols-4 gap-3">
+                                        {config.images.map((url, i) => {
+                                          const isLocal = url.startsWith('blob:');
+                                          return (
+                                            <div key={i} className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-white group border border-zinc-100 shadow-sm">
+                                              <img src={url} className={`w-full h-full object-cover ${isLocal ? 'opacity-40 animate-pulse' : ''}`} />
+                                              <button 
                                                 type="button" 
-                                                variant="outline" 
-                                                size="icon" 
-                                                onClick={() => updateStock(s, -1)}
-                                                className="w-8 h-8 rounded-lg border-zinc-100 text-zinc-400 hover:bg-zinc-50"
-                                             >
-                                                <Minus className="w-3 h-3" />
-                                             </Button>
-                                             <Input 
+                                                onClick={() => {
+                                                  setColorConfigs(prev => prev.map(c => 
+                                                    c.id === config.id 
+                                                      ? { ...c, images: c.images.filter((_, idx) => idx !== i) }
+                                                      : c
+                                                  ));
+                                                }}
+                                                className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                              >
+                                                <X className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
+                                          );
+                                        })}
+                                        {config.images.length === 0 && (
+                                          <div className="col-span-4 py-6 border border-dashed border-zinc-200 rounded-2xl flex flex-col items-center justify-center text-zinc-300 bg-white">
+                                            <ImageIcon className="w-6 h-6 mb-1" />
+                                            <span className="text-[9px] font-bold uppercase tracking-widest">No Imagery for color</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Color Sizes Stock */}
+                                    <div className="space-y-3 pt-2 border-t border-zinc-100">
+                                      <label className="text-[9px] font-black uppercase text-zinc-400 tracking-wider">Size Stock Levels</label>
+                                      <div className="grid grid-cols-5 gap-2">
+                                        {ALL_SIZES.map(s => {
+                                          const qty = config.stock[s] || 0;
+                                          return (
+                                            <div key={s} className="flex flex-col items-center bg-white p-2 rounded-xl border border-zinc-100 shadow-sm">
+                                              <span className="text-[10px] font-bold text-zinc-400 mb-1">{s}</span>
+                                              <Input 
                                                 type="number"
+                                                min="0"
                                                 value={qty}
                                                 onChange={(e) => {
-                                                   const val = Math.max(0, parseInt(e.target.value) || 0);
-                                                   setFormData({ ...formData, stockByVariant: { ...formData.stockByVariant, [key]: val } });
+                                                  const val = Math.max(0, parseInt(e.target.value) || 0);
+                                                  setColorConfigs(prev => prev.map(c => 
+                                                    c.id === config.id 
+                                                      ? { ...c, stock: { ...c.stock, [s]: val } }
+                                                      : c
+                                                  ));
                                                 }}
-                                                className="w-12 h-8 border-none bg-zinc-50 rounded-lg text-center font-heading text-sm p-0"
-                                             />
-                                             <Button 
-                                                type="button" 
-                                                variant="outline" 
-                                                size="icon" 
-                                                onClick={() => updateStock(s, 1)}
-                                                className="w-8 h-8 rounded-lg border-zinc-100 text-zinc-400 hover:bg-zinc-50"
-                                             >
-                                                <Plus className="w-3 h-3" />
-                                             </Button>
-                                          </div>
-                                       </div>
-                                    );
-                                 })}
+                                                className="w-10 h-7 border-none bg-zinc-50 rounded-lg text-center font-heading text-xs p-0 focus:bg-zinc-100 transition-colors"
+                                              />
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                           </div>
+                            </div>
 
                            <div className="space-y-2">
                               <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em]">Record Description</label>
@@ -683,7 +813,9 @@ export default function Admin() {
                                  <p className="font-heading text-xl mt-1">{formatINR(product.price)}</p>
                                  <div className="flex flex-wrap gap-1 mt-2">
                                     {ALL_SIZES.map((s) => {
-                                       const qty = product.stockByVariant?.[`Default::${s}`] || 0;
+                                       const qty = (product.colors || []).reduce((acc: number, color: string) => {
+                                          return acc + (product.stockByVariant?.[`${color}::${s}`] || 0);
+                                       }, 0);
                                        if (qty === 0) return null;
                                        return <span key={s} className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-zinc-900 text-white">{s}: {qty}</span>;
                                     })}
@@ -708,6 +840,114 @@ export default function Admin() {
                      )}
                   </div>
                </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="coupons" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+              {/* Generate Coupon Form */}
+              <div className="xl:col-span-4">
+                <Card className="border-none shadow-xl rounded-3xl bg-white">
+                  <CardHeader className="p-8 border-b border-zinc-50">
+                    <CardTitle className="font-heading text-2xl uppercase">Generate Coupon</CardTitle>
+                    <CardDescription className="font-sans text-xs">Create custom discounts for checkouts</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-8">
+                    <form onSubmit={handleCreateCoupon} className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em]">Coupon Code</label>
+                        <Input
+                          placeholder="e.g. NEVERFADE100"
+                          value={couponCodeInput}
+                          onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                          className="rounded-2xl bg-zinc-50 border-zinc-100 font-heading tracking-wider"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em]">Discount Percentage</label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="100"
+                          placeholder="e.g. 15"
+                          value={couponPercentInput || ""}
+                          onChange={(e) => setCouponPercentInput(Math.min(100, Math.max(1, parseInt(e.target.value) || 0)))}
+                          className="rounded-2xl bg-zinc-50 border-zinc-100 font-heading"
+                          required
+                        />
+                      </div>
+                      <Button type="submit" disabled={couponLoading} className="w-full rounded-2xl bg-black hover:bg-zinc-800 text-white font-bold uppercase text-xs tracking-widest py-6 cursor-pointer">
+                        {couponLoading ? "Generating..." : "Generate Discount Code"}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Coupons List */}
+              <div className="xl:col-span-8">
+                <Card className="border-none shadow-xl rounded-3xl bg-white overflow-hidden">
+                  <CardHeader className="p-8 border-b border-zinc-50 flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="font-heading text-2xl uppercase">Active Coupons</CardTitle>
+                      <CardDescription className="font-sans text-xs">A list of all valid coupon codes in the system</CardDescription>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader className="bg-zinc-50/50">
+                        <TableRow className="border-b border-zinc-50">
+                          <TableHead className="font-heading text-zinc-400 uppercase text-[10px] tracking-wider py-4 pl-8">Code</TableHead>
+                          <TableHead className="font-heading text-zinc-400 uppercase text-[10px] tracking-wider py-4">Discount</TableHead>
+                          <TableHead className="font-heading text-zinc-400 uppercase text-[10px] tracking-wider py-4">Status</TableHead>
+                          <TableHead className="font-heading text-zinc-400 uppercase text-[10px] tracking-wider py-4">Date Created</TableHead>
+                          <TableHead className="font-heading text-zinc-400 uppercase text-[10px] tracking-wider py-4 pr-8 text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {coupons.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-12 text-zinc-400 font-sans text-xs">
+                              No coupon codes have been generated yet.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          coupons.map((coupon) => (
+                            <TableRow key={coupon.id} className="border-b border-zinc-50/50 hover:bg-zinc-50/30 transition-colors">
+                              <TableCell className="py-4 pl-8 font-heading text-zinc-950 font-bold tracking-wider">{coupon.code}</TableCell>
+                              <TableCell className="py-4 font-sans text-sm text-green-600 font-semibold">{coupon.discountPercent}% Off</TableCell>
+                              <TableCell className="py-4">
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-none rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase">
+                                  {coupon.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="py-4 font-sans text-xs text-zinc-400">
+                                {new Date(coupon.createdAt).toLocaleDateString(undefined, {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </TableCell>
+                              <TableCell className="py-4 pr-8 text-right">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteCoupon(coupon.id)}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full w-8 h-8 cursor-pointer"
+                                >
+                                  <Trash className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </TabsContent>
 

@@ -76,9 +76,16 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
 const transporter = nodemailer.createTransport(transporterOptions);
 
 async function sendOrderEmail(order, paymentStatus) {
-  const { email, name, orderId, amount, items, phone, address, city, state, zipCode, country } = order;
+  const { email, name, orderId, amount, items, phone, address, city, state, zipCode, country, paymentMethod } = order;
   const isPaid = paymentStatus === 'paid';
-  const subject = isPaid ? `Your Order #${orderId} has been confirmed!` : `Payment required for your order #${orderId}`;
+  const isCOD = paymentStatus === 'cod' || paymentMethod === 'COD' || order.paymentMethod === 'COD';
+  
+  let subject = `Payment required for your order #${orderId}`;
+  if (isCOD) {
+    subject = `Your COD Order #${orderId} has been placed!`;
+  } else if (isPaid) {
+    subject = `Your Order #${orderId} has been confirmed!`;
+  }
   
   // Parse items if they are string
   const itemsList = typeof items === 'string' ? JSON.parse(items) : items;
@@ -142,10 +149,10 @@ async function sendOrderEmail(order, paymentStatus) {
                 <!-- Hero Section -->
                 <tr>
                   <td align="center" style="padding: 40px 40px 20px 40px;">
-                    <div style="width: 60px; height: 60px; border-radius: 50%; background-color: ${isPaid ? '#e6f7ed' : '#fff0f0'}; display: table-cell; vertical-align: middle;">
-                      <span style="font-size: 30px; color: ${isPaid ? '#28a745' : '#dc3545'}; line-height: 60px;">${isPaid ? '✓' : '!'}</span>
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background-color: ${isPaid || isCOD ? '#e6f7ed' : '#fff0f0'}; display: table-cell; vertical-align: middle;">
+                      <span style="font-size: 30px; color: ${isPaid || isCOD ? '#28a745' : '#dc3545'}; line-height: 60px;">${isPaid || isCOD ? '✓' : '!'}</span>
                     </div>
-                    <h1 style="margin: 20px 0 10px 0; font-size: 24px; color: #1a1a1a;">${isPaid ? 'Order Confirmed!' : 'Action Required'}</h1>
+                    <h1 style="margin: 20px 0 10px 0; font-size: 24px; color: #1a1a1a;">${isCOD ? 'COD Order Placed!' : (isPaid ? 'Order Confirmed!' : 'Action Required')}</h1>
                     <p style="margin: 0; color: #666666; font-size: 16px;">Order ID: <strong>#${orderId}</strong></p>
                   </td>
                 </tr>
@@ -155,9 +162,12 @@ async function sendOrderEmail(order, paymentStatus) {
                   <td style="padding: 20px 40px 40px 40px;">
                     <p style="font-size: 16px; line-height: 1.6; color: #444444;">
                       Hi ${name},<br><br>
-                      ${isPaid 
-                        ? "Thank you for shopping with NEVR FADE. Your order has been confirmed and is now being prepared for shipping. We'll send you a notification as soon as it's on its way." 
-                        : "There was an issue processing your payment. Please use the link below to complete your order and secure your items."}
+                      ${isCOD
+                        ? `Thank you for shopping with NEVR FADE. Your Cash on Delivery order has been successfully placed. Please keep <strong>₹${amount.toFixed(2)}</strong> cash ready upon delivery.`
+                        : (isPaid 
+                          ? "Thank you for shopping with NEVR FADE. Your order has been confirmed and is now being prepared for shipping. We'll send you a notification as soon as it's on its way." 
+                          : "There was an issue processing your payment. Please use the link below to complete your order and secure your items.")
+                      }
                     </p>
  
                     <!-- Order Summary -->
@@ -176,14 +186,14 @@ async function sendOrderEmail(order, paymentStatus) {
                       <tfoot>
                         <tr>
                           <td colspan="2" style="padding: 20px 0 5px 0; text-align: right; color: #666666;">Subtotal</td>
-                          <td style="padding: 20px 0 5px 0; text-align: right; color: #333333;">₹${(amount / 1.08).toFixed(2)}</td>
+                          <td style="padding: 20px 0 5px 0; text-align: right; color: #333333;">₹${(isCOD ? amount - 99 : amount).toFixed(2)}</td>
                         </tr>
                         <tr>
-                          <td colspan="2" style="padding: 5px 0 5px 0; text-align: right; color: #666666;">Tax (8%)</td>
-                          <td style="padding: 5px 0 5px 0; text-align: right; color: #333333;">₹${(amount - (amount / 1.08)).toFixed(2)}</td>
+                          <td colspan="2" style="padding: 5px 0 5px 0; text-align: right; color: #666666;">Shipping</td>
+                          <td style="padding: 5px 0 5px 0; text-align: right; color: ${isCOD ? '#333333' : '#28a745'}; font-weight: ${isCOD ? 'normal' : 'bold'};">₹${isCOD ? '99.00' : '0.00 (FREE)'}</td>
                         </tr>
                         <tr>
-                          <td colspan="2" style="padding: 10px 0 0 0; text-align: right; font-weight: bold; font-size: 18px; color: #333333;">Total Paid</td>
+                          <td colspan="2" style="padding: 10px 0 0 0; text-align: right; font-weight: bold; font-size: 18px; color: #333333;">${isCOD ? 'Total Due' : 'Total Paid'}</td>
                           <td style="padding: 10px 0 0 0; text-align: right; font-weight: bold; font-size: 24px; color: #000000;">₹${amount.toFixed(2)}</td>
                         </tr>
                       </tfoot>
@@ -218,8 +228,8 @@ async function sendOrderEmail(order, paymentStatus) {
                           <div style="background-color: #fafafa; border: 1px solid #eeeeee; border-radius: 6px; padding: 15px; min-height: 80px;">
                             <h4 style="margin: 0 0 10px 0; text-transform: uppercase; font-size: 11px; color: #888888; letter-spacing: 0.5px;">Payment Info</h4>
                             <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #333333;">
-                              <strong>Status:</strong> <span style="color: ${isPaid ? '#28a745' : '#dc3545'}; font-weight: bold;">${isPaid ? 'PAID' : 'PENDING'}</span><br>
-                              <strong>Method:</strong> Razorpay Online
+                              <strong>Status:</strong> <span style="color: ${isPaid ? '#28a745' : (isCOD ? '#ffc107' : '#dc3545')}; font-weight: bold;">${isPaid ? 'PAID' : (isCOD ? 'COD PENDING' : 'PENDING')}</span><br>
+                              <strong>Method:</strong> ${isCOD ? 'Cash on Delivery (COD)' : 'Razorpay Online'}
                             </p>
                           </div>
                         </td>
@@ -289,6 +299,7 @@ function transformProduct(row) {
   const product = { ...row };
   try { product.variants = typeof row.variants === 'string' ? JSON.parse(row.variants) : row.variants; } catch (e) { product.variants = []; }
   try { product.images = typeof row.images === 'string' ? JSON.parse(row.images) : row.images; } catch (e) { product.images = []; }
+  try { product.colorImages = typeof row.colorImages === 'string' ? JSON.parse(row.colorImages) : row.colorImages; } catch (e) { product.colorImages = {}; }
   
   product.title = row.name;
   product.image = Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null;
@@ -333,6 +344,38 @@ app.get('/api/products/:id', async (req, res) => {
     if (!row) return res.status(404).json({ error: 'Product not found' });
     res.json(transformProduct(row));
   } catch (err) { res.status(500).json({ error: 'Error' }); }
+});
+
+app.get('/api/products/:id/reviews', async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'DB not ready' });
+  try {
+    const rows = await db.all('SELECT * FROM reviews WHERE productId = ? ORDER BY createdAt DESC', req.params.id);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching reviews' });
+  }
+});
+
+app.post('/api/products/:id/reviews', async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'DB not ready' });
+  const { authorName, rating, comment } = req.body;
+  if (!authorName || !rating) {
+    return res.status(400).json({ error: 'Name and rating are required' });
+  }
+  const ratingInt = parseInt(rating, 10);
+  if (isNaN(ratingInt) || ratingInt < 1 || ratingInt > 5) {
+    return res.status(400).json({ error: 'Rating must be an integer between 1 and 5' });
+  }
+  try {
+    const result = await db.run(
+      'INSERT INTO reviews (productId, authorName, rating, comment) VALUES (?, ?, ?, ?)',
+      [req.params.id, authorName, ratingInt, comment || '']
+    );
+    const newReview = await db.get('SELECT * FROM reviews WHERE id = ?', result.lastID);
+    res.status(201).json(newReview);
+  } catch (err) {
+    res.status(500).json({ error: 'Error saving review' });
+  }
 });
 
 app.post('/api/upload', requireAdminAuth, (req, res) => {
@@ -528,11 +571,11 @@ app.get('/api/admin/products', requireAdminAuth, async (req, res) => {
 });
 
 app.post('/api/admin/products', requireAdminAuth, async (req, res) => {
-  const { title, name, description, category, price, variants, images, status } = req.body;
+  const { title, name, description, category, price, variants, images, status, colorImages } = req.body;
   try {
     const result = await db.run(
-      'INSERT INTO products (name, description, category, price, variants, images, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      title || name, description, category, price, JSON.stringify(variants || []), JSON.stringify(images || []), status || 'Publish'
+      'INSERT INTO products (name, description, category, price, variants, images, status, colorImages) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      title || name, description, category, price, JSON.stringify(variants || []), JSON.stringify(images || []), status || 'Publish', JSON.stringify(colorImages || {})
     );
     const created = await db.get('SELECT * FROM products WHERE id = ?', result.lastID);
     res.status(201).json(transformProduct(created));
@@ -543,11 +586,11 @@ app.post('/api/admin/products', requireAdminAuth, async (req, res) => {
 });
 
 app.put('/api/admin/products/:id', requireAdminAuth, async (req, res) => {
-  const { title, name, description, category, price, variants, images, status } = req.body;
+  const { title, name, description, category, price, variants, images, status, colorImages } = req.body;
   try {
     await db.run(
-      'UPDATE products SET name = ?, description = ?, category = ?, price = ?, variants = ?, images = ?, status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
-      title || name, description, category, price, JSON.stringify(variants || []), JSON.stringify(images || []), status || 'Publish', req.params.id
+      'UPDATE products SET name = ?, description = ?, category = ?, price = ?, variants = ?, images = ?, status = ?, colorImages = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
+      title || name, description, category, price, JSON.stringify(variants || []), JSON.stringify(images || []), status || 'Publish', JSON.stringify(colorImages || {}), req.params.id
     );
     const updated = await db.get('SELECT * FROM products WHERE id = ?', req.params.id);
     res.json(transformProduct(updated));
@@ -584,13 +627,37 @@ app.post('/api/create-order', async (req, res) => {
 });
 
 app.post('/api/checkout', async (req, res) => {
-  const { items, name, email, address, city, state, zipCode, country, phone, orderId } = req.body;
-  const total = items.reduce((s, i) => s + (i.product.price * i.quantity), 0) * 1.08;
+  const { items, name, email, address, city, state, zipCode, country, phone, orderId, paymentMethod, couponCode } = req.body;
+  const subtotal = items.reduce((s, i) => s + (i.product.price * i.quantity), 0);
+  const isCOD = paymentMethod === 'COD';
+  
+  let discountAmount = 0;
+  let validatedCouponCode = null;
+  if (couponCode) {
+    try {
+      const coupon = await db.get('SELECT * FROM coupons WHERE code = ? AND status = "Active"', couponCode.toUpperCase().trim());
+      if (coupon) {
+        discountAmount = Math.round(subtotal * (coupon.discountPercent / 100));
+        validatedCouponCode = coupon.code;
+      }
+    } catch (err) {
+      console.error('Coupon validation error during checkout:', err);
+    }
+  }
+  
+  const total = (isCOD ? subtotal + 99 : subtotal) - discountAmount;
   try {
     await db.run(
-      'INSERT INTO orders (orderId, name, email, phone, address, city, state, zipCode, country, items, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      orderId, name, email, phone, address, city, state, zipCode, country || 'India', JSON.stringify(items), total
+      'INSERT INTO orders (orderId, name, email, phone, address, city, state, zipCode, country, items, amount, status, paymentMethod, couponCode, discountAmount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      orderId, name, email, phone, address, city, state, zipCode, country || 'India', JSON.stringify(items), total, isCOD ? 'cod_pending' : 'pending', paymentMethod || 'Prepaid', validatedCouponCode, discountAmount
     );
+    if (isCOD) {
+      db.get('SELECT * FROM orders WHERE orderId = ?', orderId).then(order => {
+        if (order) {
+          sendOrderEmail(order, 'cod');
+        }
+      });
+    }
     res.json({ success: true });
   } catch (e) { 
     console.error('Checkout error:', e);
@@ -646,6 +713,60 @@ app.post('/api/razorpay-webhook', (req, res) => {
   } catch (err) {
     console.error('Webhook error:', err);
     res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+// Coupons Admin API
+app.get('/api/admin/coupons', requireAdminAuth, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'DB not ready' });
+  try {
+    const rows = await db.all('SELECT * FROM coupons ORDER BY createdAt DESC');
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'Error fetching coupons' }); }
+});
+
+app.post('/api/admin/coupons', requireAdminAuth, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'DB not ready' });
+  const { code, discountPercent } = req.body;
+  if (!code || isNaN(discountPercent) || discountPercent <= 0 || discountPercent > 100) {
+    return res.status(400).json({ error: 'Invalid coupon data. Percentage must be 1-100.' });
+  }
+  try {
+    await db.run(
+      'INSERT INTO coupons (code, discountPercent) VALUES (?, ?)',
+      code.toUpperCase().trim(), parseFloat(discountPercent)
+    );
+    const newCoupon = await db.get('SELECT * FROM coupons WHERE code = ?', code.toUpperCase().trim());
+    res.json(newCoupon);
+  } catch (err) {
+    if (err.message && err.message.includes('UNIQUE')) {
+      return res.status(400).json({ error: 'Coupon code already exists' });
+    }
+    res.status(500).json({ error: 'Error creating coupon' });
+  }
+});
+
+app.delete('/api/admin/coupons/:id', requireAdminAuth, async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'DB not ready' });
+  try {
+    await db.run('DELETE FROM coupons WHERE id = ?', req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: 'Error deleting coupon' }); }
+});
+
+// Coupons Public Validation
+app.post('/api/coupons/validate', async (req, res) => {
+  if (!db) return res.status(503).json({ error: 'DB not ready' });
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'Coupon code is required' });
+  try {
+    const coupon = await db.get('SELECT * FROM coupons WHERE code = ? AND status = "Active"', code.toUpperCase().trim());
+    if (!coupon) {
+      return res.status(404).json({ error: 'Invalid coupon code' });
+    }
+    res.json({ success: true, discountPercent: coupon.discountPercent, code: coupon.code });
+  } catch (err) {
+    res.status(500).json({ error: 'Error validating coupon' });
   }
 });
 

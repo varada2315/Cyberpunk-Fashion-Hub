@@ -3,6 +3,17 @@ import Navbar from "@/components/Navbar";
 import { useCart } from "@/hooks/useCart";
 import { formatINR } from "@/lib/currency";
 import { getVariantStock } from "@/lib/stock";
+import { Trash2 } from "lucide-react";
+import { validateCoupon } from "@/lib/products";
+import { toast } from "sonner";
+
+function getColorName(hex?: string) {
+  if (!hex) return "";
+  const h = hex.toLowerCase();
+  if (h === "#000000" || h === "black") return "Black";
+  if (h === "#faf9f6" || h === "off-white" || h === "off white") return "Off White";
+  return hex;
+}
 
 export default function Cart() {
   const { cartItems, removeFromCart, updateQuantity, getTotalPrice, getTotalItems, clearCart } = useCart();
@@ -16,17 +27,84 @@ export default function Cart() {
     zipCode: "",
     phone: "",
     country: "India",
-    state: ""
+    state: "",
+    paymentMethod: "Prepaid"
   });
   const [razorpayOrderId, setRazorpayOrderId] = useState<string | null>(null);
   const [purchasedItems, setPurchasedItems] = useState<any[]>([]);
 
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountPercent: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
+
+  const discountAmount = appliedCoupon ? Math.round(getTotalPrice() * (appliedCoupon.discountPercent / 100)) : 0;
+  const discountedSubtotal = getTotalPrice() - discountAmount;
+
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponInput.trim()) return;
+    
+    try {
+      const result = await validateCoupon(couponInput.trim());
+      if (result.success) {
+        setAppliedCoupon({
+          code: result.code,
+          discountPercent: result.discountPercent
+        });
+        setCouponError(null);
+        setCouponSuccess(`Coupon "${result.code}" applied: ${result.discountPercent}% Off!`);
+        toast.success(`Coupon "${result.code}" applied successfully!`);
+      } else {
+        setAppliedCoupon(null);
+        setCouponSuccess(null);
+        setCouponError("Invalid coupon code.");
+        toast.error("Invalid coupon code.");
+      }
+    } catch (err: any) {
+      setAppliedCoupon(null);
+      setCouponSuccess(null);
+      setCouponError(err.message || "Failed to validate coupon.");
+      toast.error(err.message || "Failed to validate coupon.");
+    }
+  };
+
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // First, create a Razorpay order
     try {
-      const totalAmount = getTotalPrice() * 1.08; // Including 8% tax
+      const isCOD = checkoutForm.paymentMethod === "COD";
+      const checkoutTotal = discountedSubtotal + (isCOD ? 99 : 0);
+      
+      if (isCOD) {
+        const codOrderId = `cod_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+        setRazorpayOrderId(codOrderId);
+        
+        const response = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            items: cartItems,
+            ...checkoutForm,
+            orderId: codOrderId,
+            couponCode: appliedCoupon?.code,
+            discountAmount: discountAmount
+          })
+        });
+        
+        if (response.ok) {
+          setPurchasedItems([...cartItems]);
+          setIsPaymentSuccess(true);
+          clearCart();
+          setIsCheckout(false);
+        } else {
+          const error = await response.json();
+          alert(`Error: ${error.error || error.message || 'Failed to place order'}`);
+        }
+        return;
+      }
       
       const orderResponse = await fetch('/api/create-order', {
         method: 'POST',
@@ -34,7 +112,7 @@ export default function Cart() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: totalAmount,
+          amount: checkoutTotal,
           receipt: `order_${Date.now()}`
         })
       });
@@ -57,17 +135,17 @@ export default function Cart() {
         body: JSON.stringify({
           items: cartItems,
           ...checkoutForm,
-          orderId: orderResult.order.id
+          orderId: orderResult.order.id,
+          couponCode: appliedCoupon?.code,
+          discountAmount: discountAmount
         })
       });
       
       if (response.ok) {
-        const result = await response.json();
-        
         // Initialize Razorpay payment
         const razorpay = new (window as any).Razorpay({
           key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-          amount: Math.round(totalAmount * 100), // Amount in paise
+          amount: Math.round(checkoutTotal * 100), // Amount in paise
           currency: "INR",
           order_id: orderResult.order.id,
           handler: function (response: any) {
@@ -76,7 +154,6 @@ export default function Cart() {
             setIsPaymentSuccess(true);
             clearCart();
             setIsCheckout(false);
-            
           },
           prefill: {
             name: checkoutForm.name,
@@ -108,7 +185,7 @@ export default function Cart() {
     return (
       <main className="min-h-screen bg-background w-full overflow-hidden">
         <Navbar />
-        <div className="container mx-auto px-6 md:px-12 pt-36 pb-16">
+        <div className="container mx-auto px-6 md:px-12 pt-28 md:pt-36 pb-16">
           <div className="text-center p-8 bg-secondary rounded-lg max-w-md">
             <h1 className="font-heading text-3xl text-foreground mb-4">Your Cart is Empty</h1>
             <p className="font-sans text-muted-foreground mb-6">
@@ -127,8 +204,8 @@ export default function Cart() {
    return (
      <main className="min-h-screen bg-background w-full overflow-hidden">
        <Navbar />
-       <div className="container mx-auto px-6 md:px-12 pt-36 pb-16">
-         <h1 className="font-heading text-4xl text-foreground mb-8">{isPaymentSuccess ? "Order Confirmed" : "Checkout"}</h1>
+       <div className="container mx-auto px-6 md:px-12 pt-28 md:pt-36 pb-16">
+         <h1 className="font-heading text-3xl sm:text-4xl text-foreground mb-8">{isPaymentSuccess ? "Order Confirmed" : "Checkout"}</h1>
          
          {isPaymentSuccess ? (
             <div className="bg-secondary border border-primary/20 rounded-xl p-8 max-w-2xl mx-auto shadow-2xl overflow-hidden relative">
@@ -141,8 +218,15 @@ export default function Cart() {
                 </svg>
               </div>
 
-              <h3 className="font-heading text-3xl text-foreground mb-2 text-center">Payment Successful!</h3>
-              <p className="font-sans text-muted-foreground mb-8 text-center">Your tactical gear is secured. Order reference: <span className="text-primary font-mono text-sm">{razorpayOrderId}</span></p>
+              <h3 className="font-heading text-3xl text-foreground mb-2 text-center">
+                {checkoutForm.paymentMethod === "COD" ? "Order Placed Successfully!" : "Payment Successful!"}
+              </h3>
+              <p className="font-sans text-muted-foreground mb-8 text-center">
+                {checkoutForm.paymentMethod === "COD" 
+                  ? "Your tactical gear is reserved and will be paid upon delivery. Order reference:" 
+                  : "Your tactical gear is secured. Order reference:"}{" "}
+                <span className="text-primary font-mono text-sm">{razorpayOrderId}</span>
+              </p>
               
               {purchasedItems.length > 0 && (
                 <div className="text-left bg-background/50 border border-primary/10 rounded-lg p-6 mb-8">
@@ -156,7 +240,7 @@ export default function Cart() {
                             <p className="font-medium text-foreground">{item.product.title}</p>
                             {(item.selectedColor || item.selectedSize) && (
                               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                                {item.selectedColor || 'Default'} // {item.selectedSize || 'Standard'}
+                                {getColorName(item.selectedColor) || 'Default'} // {item.selectedSize || 'Standard'}
                               </p>
                             )}
                           </div>
@@ -165,9 +249,25 @@ export default function Cart() {
                       </div>
                     ))}
                   </div>
+                  {checkoutForm.paymentMethod === "COD" && (
+                    <div className="mt-4 space-y-2 border-t border-primary/10 pt-4 text-sm text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>Items Subtotal</span>
+                        <span>{formatINR(purchasedItems.reduce((s, i) => s + (i.product.price * i.quantity), 0))}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Shipping & Handling (COD)</span>
+                        <span>{formatINR(99)}</span>
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-6 pt-4 border-t border-primary/20 flex justify-between items-center">
-                    <span className="font-heading text-lg text-foreground">Total Paid (incl. Tax)</span>
-                    <span className="font-heading text-2xl text-primary">{formatINR(purchasedItems.reduce((s, i) => s + (i.product.price * i.quantity), 0) * 1.08)}</span>
+                    <span className="font-heading text-lg text-foreground">
+                      {checkoutForm.paymentMethod === "COD" ? "Total Amount Due" : "Total Paid"}
+                    </span>
+                    <span className="font-heading text-2xl text-primary">
+                      {formatINR(purchasedItems.reduce((s, i) => s + (i.product.price * i.quantity), 0) + (checkoutForm.paymentMethod === "COD" ? 99 : 0))}
+                    </span>
                   </div>
                 </div>
               )}
@@ -178,7 +278,10 @@ export default function Cart() {
                   onClick={() => {
                     const phoneNumber = "919103586486";
                     const itemNames = purchasedItems.map(i => `${i.quantity}x ${i.product.title}`).join(', ');
-                    const message = `Hello, I've successfully made a payment for Order #${razorpayOrderId}.\n\nItems: ${itemNames}\n\nPlease proceed with delivery to ${checkoutForm.address}, ${checkoutForm.city}.`;
+                    const isCOD = checkoutForm.paymentMethod === "COD";
+                    const message = isCOD 
+                      ? `Hello, I've successfully placed a Cash on Delivery Order #${razorpayOrderId}.\n\nItems: ${itemNames}\n\nPlease proceed with delivery to ${checkoutForm.address}, ${checkoutForm.city}.`
+                      : `Hello, I've successfully made a payment for Order #${razorpayOrderId}.\n\nItems: ${itemNames}\n\nPlease proceed with delivery to ${checkoutForm.address}, ${checkoutForm.city}.`;
                     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
                     window.open(whatsappUrl, '_blank');
                   }}
@@ -301,22 +404,75 @@ export default function Cart() {
              </div>
              
              <div>
-               <h2 className="font-heading text-2xl text-foreground mb-6">Razorpay Payment</h2>
-               <div className="space-y-4">
-                 <div className="bg-secondary p-4 rounded-lg">
-                   <p className="text-muted-foreground mb-2">You will be redirected to Razorpay to complete your payment securely.</p>
-                   <p className="text-sm text-muted-foreground">Total amount: {formatINR(getTotalPrice() * 1.08)}</p>
-                 </div>
-                 
-                 <div className="pt-6">
-                   <button
-                     type="submit"
-                     className="w-full px-6 py-3 rounded-full text-lg font-medium tracking-wide uppercase transition-colors bg-[#F5F0EB] text-[#0D0D0D] hover:bg-[#C8B89A]"
-                   >
-                     Proceed to Razorpay
-                   </button>
-                 </div>
-               </div>
+              <div>
+                <div>
+                  <h2 className="font-heading text-2xl text-foreground mb-6">Payment Option</h2>
+                  <div className="space-y-6">
+                    <div className="p-4 rounded-lg border border-primary/30 bg-[#F5F0EB]/5 flex flex-col justify-center">
+                      <span className="font-heading text-foreground font-semibold text-base">Prepaid (Online Payment)</span>
+                      <span className="text-xs text-green-500 font-sans mt-1">Free Shipping</span>
+                    </div>
+
+                    {/* Coupon Code Input */}
+                    <div className="bg-secondary p-6 rounded-lg space-y-4">
+                      <span className="font-heading text-sm text-foreground uppercase tracking-wider block">Have a Coupon?</span>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="ENTER CODE"
+                          value={couponInput}
+                          onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                          className="flex-1 bg-background border border-primary/20 rounded-full px-4 py-2 text-xs focus:border-primary focus:outline-none font-heading tracking-wider"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyCoupon}
+                          className="bg-primary text-primary-foreground font-heading uppercase text-[10px] tracking-wider rounded-full px-5 py-2 hover:bg-zinc-800 transition-colors cursor-pointer"
+                        >
+                          Apply
+                        </button>
+                      </div>
+                      {couponError && <p className="text-xs text-red-500 font-sans">{couponError}</p>}
+                      {couponSuccess && <p className="text-xs text-green-500 font-sans">{couponSuccess}</p>}
+                    </div>
+
+                    <div className="bg-secondary p-6 rounded-lg space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Order Subtotal</span>
+                        <span className="font-heading">{formatINR(getTotalPrice())}</span>
+                      </div>
+                      {appliedCoupon && (
+                        <div className="flex justify-between text-sm text-green-600 font-medium">
+                          <span>Discount ({appliedCoupon.code})</span>
+                          <span>-{formatINR(discountAmount)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Shipping</span>
+                        <span className="font-heading text-green-500">FREE</span>
+                      </div>
+                      <div className="border-t border-primary/20 pt-3 flex justify-between">
+                        <span className="font-heading text-lg text-foreground">Total to Pay</span>
+                        <span className="font-heading text-xl text-primary">
+                          {formatINR(discountedSubtotal)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-4 pt-2 border-t border-primary/10">
+                        You will be redirected to Razorpay's secure payment screen.
+                      </p>
+                    </div>
+                    
+                    <div className="pt-4">
+                      <button
+                        type="submit"
+                        className="w-full px-6 py-4 rounded-full text-lg font-medium tracking-wide uppercase transition-colors bg-[#F5F0EB] text-[#0D0D0D] hover:bg-[#C8B89A] shadow-md cursor-pointer"
+                      >
+                        Proceed to Razorpay
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
              </div>
            </form>
          )}
@@ -328,33 +484,35 @@ export default function Cart() {
   return (
     <main className="min-h-screen bg-background w-full overflow-hidden">
       <Navbar />
-      <div className="container mx-auto px-6 md:px-12 pt-36 pb-16">
-        <h1 className="font-heading text-4xl text-foreground mb-8">Your Shopping Cart</h1>
+      <div className="container mx-auto px-6 md:px-12 pt-28 md:pt-36 pb-16">
+        <h1 className="font-heading text-3xl sm:text-4xl text-foreground mb-8">Your Shopping Cart</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
             <div className="space-y-6">
               {cartItems.map(({ product, quantity }) => (
-                <div key={`${product.id}-${product.selectedColor ?? "default"}-${product.selectedSize ?? "default"}`} className="flex items-center gap-6 p-6 bg-secondary rounded-lg">
-                  <img 
-                    src={product.image} 
-                    alt={product.title}
-                    className="w-24 h-24 object-cover rounded"
-                  />
-                  <div className="flex-1">
-                    <h3 className="font-heading text-xl text-foreground">{product.title}</h3>
-                    <p className="font-sans text-muted-foreground">{product.category}</p>
-                    {(product.selectedColor || product.selectedSize) && (
-                      <p className="font-sans text-sm text-muted-foreground mt-1">
-                        {product.selectedColor ? `Color: ${product.selectedColor}` : ""}
-                        {product.selectedColor && product.selectedSize ? " | " : ""}
-                        {product.selectedSize ? `Size: ${product.selectedSize}` : ""}
-                      </p>
-                    )}
-                    <p className="font-heading text-lg text-foreground mt-2">{formatINR(product.price)} each</p>
+                <div key={`${product.id}-${product.selectedColor ?? "default"}-${product.selectedSize ?? "default"}`} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-6 bg-secondary rounded-lg">
+                  <div className="flex items-start gap-4 w-full sm:w-auto">
+                    <img 
+                      src={product.image} 
+                      alt={product.title}
+                      className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-heading text-lg sm:text-xl text-foreground truncate">{product.title}</h3>
+                      <p className="font-sans text-xs sm:text-sm text-muted-foreground">{product.category}</p>
+                      {(product.selectedColor || product.selectedSize) && (
+                        <p className="font-sans text-xs sm:text-sm text-muted-foreground mt-1">
+                          {product.selectedColor ? `Color: ${getColorName(product.selectedColor)}` : ""}
+                          {product.selectedColor && product.selectedSize ? " | " : ""}
+                          {product.selectedSize ? `Size: ${product.selectedSize}` : ""}
+                        </p>
+                      )}
+                      <p className="font-heading text-base sm:text-lg text-foreground mt-1">{formatINR(product.price)} each</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-row items-center justify-between sm:justify-end gap-6 w-full sm:w-auto pt-4 sm:pt-0 border-t border-primary/10 sm:border-t-0">
+                    <div className="flex items-center border border-primary/20 bg-background/50 select-none">
                       <button 
                         onClick={() =>
                           updateQuantity(
@@ -364,11 +522,12 @@ export default function Cart() {
                             product.selectedSize
                           )
                         }
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/20 text-primary"
+                        className="w-8 h-8 flex items-center justify-center bg-primary/5 hover:bg-primary/10 text-primary transition-colors font-mono disabled:opacity-50"
+                        disabled={quantity <= 1}
                       >
                         -
                       </button>
-                      <span className="w-8 text-center">{quantity}</span>
+                      <span className="w-8 text-center text-sm font-mono font-medium text-foreground">{quantity}</span>
                       <button 
                         onClick={() =>
                           updateQuantity(
@@ -378,48 +537,82 @@ export default function Cart() {
                             product.selectedSize
                           )
                         }
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/20 text-primary"
+                        className="w-8 h-8 flex items-center justify-center bg-primary/5 hover:bg-primary/10 text-primary transition-colors font-mono"
                       >
                         +
                       </button>
                     </div>
-                    <span className="font-heading text-lg text-foreground">
-                      {formatINR(product.price * quantity)}
-                    </span>
-                    <button 
-                      onClick={() =>
-                        removeFromCart(product.id, product.selectedColor, product.selectedSize)
-                      }
-                      className="ml-4 text-red-500 hover:text-red-700"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <span className="block font-heading text-base sm:text-lg text-foreground min-w-[70px]">
+                          {formatINR(product.price * quantity)}
+                        </span>
+                        <span className="block text-[10px] text-muted-foreground uppercase tracking-wider sm:hidden mt-0.5">
+                          {formatINR(product.price)} each
+                        </span>
+                      </div>
+                      <button 
+                        onClick={() =>
+                          removeFromCart(product.id, product.selectedColor, product.selectedSize)
+                        }
+                        className="flex items-center justify-center gap-1.5 text-red-500 hover:text-red-600 transition-colors py-2 px-3 bg-red-500/5 hover:bg-red-500/10 border border-red-500/15 text-xs font-semibold uppercase tracking-widest shrink-0"
+                        title="Remove Item"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Remove</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
           
-          <div className="bg-secondary p-8 rounded-lg">
-            <h2 className="font-heading text-2xl text-foreground mb-6">Order Summary</h2>
+          <div className="bg-secondary p-8 rounded-lg space-y-6">
+            <h2 className="font-heading text-2xl text-foreground">Order Summary</h2>
+
+            {/* Coupon Code Input */}
+            <div className="border-t border-primary/10 pt-6 space-y-4">
+              <span className="font-heading text-sm text-foreground uppercase tracking-wider block">Have a Coupon?</span>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="ENTER CODE"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                  className="flex-1 bg-background border border-primary/20 rounded-full px-4 py-2 text-xs focus:border-primary focus:outline-none font-heading tracking-wider"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  className="bg-primary text-primary-foreground font-heading uppercase text-[10px] tracking-wider rounded-full px-5 py-2 hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  Apply
+                </button>
+              </div>
+              {couponError && <p className="text-xs text-red-500 font-sans">{couponError}</p>}
+              {couponSuccess && <p className="text-xs text-green-500 font-sans">{couponSuccess}</p>}
+            </div>
             
-            <div className="space-y-4 mb-8">
+            <div className="space-y-4 border-t border-primary/10 pt-6">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-heading">{formatINR(getTotalPrice())}</span>
               </div>
+              {appliedCoupon && (
+                <div className="flex justify-between text-green-600 font-medium text-sm">
+                  <span>Discount ({appliedCoupon.code})</span>
+                  <span>-{formatINR(discountAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shipping</span>
                 <span className="font-heading">Free</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax</span>
-                <span className="font-heading">{formatINR(getTotalPrice() * 0.08)}</span>
-              </div>
               <div className="border-t border-primary/30 pt-4 flex justify-between">
                 <span className="font-heading text-lg text-foreground">Total</span>
                 <span className="font-heading text-lg text-foreground">
-                  {formatINR(getTotalPrice() * 1.08)}
+                  {formatINR(discountedSubtotal)}
                 </span>
               </div>
             </div>

@@ -18,6 +18,7 @@ export interface Product {
   stockByVariant?: Record<string, number>;
   selectedColor?: string | null;
   selectedSize?: string | null;
+  colorImages?: Record<string, string[]> | string;
 }
 
 export interface AdminLoginResponse {
@@ -216,4 +217,84 @@ export async function verifyAdminForgotPasswordOtp(otp: string): Promise<{ succe
   });
 
   return parseApiResponse<{ success: boolean; message: string }>(response);
+}
+
+export interface Coupon {
+  id: number;
+  code: string;
+  discountPercent: number;
+  status: string;
+  createdAt: string;
+}
+
+export async function fetchAdminCoupons(token: string): Promise<Coupon[]> {
+  const response = await fetch('/api/admin/coupons', {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+  return parseApiResponse<Coupon[]>(response);
+}
+
+export async function createAdminCoupon(token: string, payload: { code: string; discountPercent: number }): Promise<Coupon> {
+  const response = await fetch('/api/admin/coupons', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse<Coupon>(response);
+}
+
+export async function deleteAdminCoupon(token: string, id: number): Promise<void> {
+  const response = await fetch(`/api/admin/coupons/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || `Failed to delete coupon with ID ${id}`);
+  }
+}
+
+export async function validateCoupon(code: string): Promise<{ success: boolean; discountPercent: number; code: string }> {
+  const response = await fetch('/api/coupons/validate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ code })
+  });
+  return parseApiResponse<{ success: boolean; discountPercent: number; code: string }>(response);
+}
+
+export interface Review {
+  id: number;
+  productId: number;
+  authorName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+export async function fetchProductReviews(productId: number): Promise<Review[]> {
+  const response = await fetch(`/api/products/${productId}/reviews`);
+  return parseApiResponse<Review[]>(response);
+}
+
+export async function createProductReview(productId: number, payload: { authorName: string; rating: number; comment?: string }): Promise<Review> {
+  const response = await fetch(`/api/products/${productId}/reviews`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse<Review>(response);
 }
