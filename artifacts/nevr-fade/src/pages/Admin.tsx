@@ -49,6 +49,45 @@ import {
 
 const ALL_SIZES = ["S", "M", "L", "XL", "XXL"];
 
+const getColorHex = (colorName: string) => {
+  const name = (colorName || "").trim().toLowerCase();
+  
+  const colorMap: Record<string, string> = {
+    'default': '#000000',
+    'black': '#000000',
+    'white': '#ffffff',
+    'off-white': '#faf9f6',
+    'off white': '#faf9f6',
+    'red': '#ff0000',
+    'blue': '#0000ff',
+    'green': '#008000',
+    'yellow': '#ffff00',
+    'grey': '#808080',
+    'gray': '#808080',
+    'navy': '#000080',
+    'orange': '#ffa500',
+    'purple': '#800080',
+    'pink': '#ffc0cb',
+    'brown': '#a52a2a',
+    'beige': '#f5f5dc',
+    'cream': '#fffdd0',
+    'sand': '#c2b280',
+  };
+
+  if (colorMap[name]) {
+    return colorMap[name];
+  }
+  
+  if (/^#[0-9A-F]{3,8}$/i.test(name)) {
+    if (name.length === 4) {
+      return '#' + name[1] + name[1] + name[2] + name[2] + name[3] + name[3];
+    }
+    return name;
+  }
+  
+  return '#000000';
+};
+
 interface ColorConfig {
   id: string;
   color: string;
@@ -104,6 +143,9 @@ export default function Admin() {
       stock: ALL_SIZES.reduce((acc, s) => ({ ...acc, [s]: 0 }), {})
     }
   ]);
+  const [sizeStock, setSizeStock] = useState<Record<string, number>>(() =>
+    ALL_SIZES.reduce((acc, s) => ({ ...acc, [s]: 0 }), {})
+  );
 
   // Coupon State
   const [couponCodeInput, setCouponCodeInput] = useState("");
@@ -157,6 +199,20 @@ export default function Admin() {
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (isAuthenticated && products.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const editId = params.get("edit");
+      if (editId) {
+        const prod = products.find(p => p.id === parseInt(editId, 10));
+        if (prod) {
+          startEdit(prod);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+    }
+  }, [isAuthenticated, products]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     await login(username, password);
@@ -185,14 +241,12 @@ export default function Admin() {
       ALL_SIZES.map(size => ({
         color: config.color.trim(),
         size,
-        stock: config.stock[size] || 0
+        stock: sizeStock[size] || 0
       }))
     );
 
     const activeColors = Array.from(new Set(colorConfigs.map(c => c.color.trim())));
-    const activeSizes = ALL_SIZES.filter(size => 
-      colorConfigs.some(config => (config.stock[size] || 0) > 0)
-    );
+    const activeSizes = ALL_SIZES;
 
     const colorImgMap: Record<string, string[]> = {};
     colorConfigs.forEach(config => {
@@ -249,6 +303,7 @@ export default function Admin() {
         stock: ALL_SIZES.reduce((acc, s) => ({ ...acc, [s]: 0 }), {})
       }
     ]);
+    setSizeStock(ALL_SIZES.reduce((acc, s) => ({ ...acc, [s]: 0 }), {}));
   };
 
   const startEdit = (product: any) => {
@@ -289,6 +344,15 @@ export default function Admin() {
         stock: stockMap
       };
     });
+
+    const globalStockMap: Record<string, number> = {};
+    ALL_SIZES.forEach(s => {
+      const sizeVariant = Array.isArray(product.variants)
+        ? product.variants.find((v: any) => v.size === s)
+        : null;
+      globalStockMap[s] = sizeVariant ? sizeVariant.stock : 0;
+    });
+    setSizeStock(globalStockMap);
 
     setFormData({
       title: product.title || product.name || "",
@@ -623,6 +687,30 @@ export default function Admin() {
                               </div>
                            </div>
 
+                            <div className="space-y-3 pt-2 border-t border-zinc-100">
+                              <label className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">Size Stock Levels</label>
+                              <div className="grid grid-cols-5 gap-2">
+                                {ALL_SIZES.map(s => {
+                                  const qty = sizeStock[s] || 0;
+                                  return (
+                                    <div key={s} className="flex flex-col items-center bg-zinc-50/50 p-2 rounded-xl border border-zinc-100 shadow-sm">
+                                      <span className="text-[10px] font-bold text-zinc-400 mb-1">{s}</span>
+                                      <Input 
+                                        type="number"
+                                        min="0"
+                                        value={qty}
+                                        onChange={(e) => {
+                                          const val = Math.max(0, parseInt(e.target.value) || 0);
+                                          setSizeStock(prev => ({ ...prev, [s]: val }));
+                                        }}
+                                        className="w-10 h-7 border-none bg-white rounded-lg text-center font-heading text-xs p-0 focus:bg-zinc-100 transition-colors"
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
                               <div className="space-y-6">
                               <div className="flex justify-between items-center border-b border-zinc-100 pb-2">
                                 <label className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em]">Color Options ({colorConfigs.length})</label>
@@ -669,13 +757,15 @@ export default function Admin() {
                                     <div className="space-y-2">
                                       <label className="text-[9px] font-black uppercase text-zinc-400 tracking-wider">Color Value (Hex/Name)</label>
                                       <div className="flex items-center gap-3">
-                                        <div 
-                                          className="w-8 h-8 rounded-full border border-zinc-200 flex-shrink-0 transition-all shadow-sm"
-                                          style={{ 
-                                            backgroundColor: config.color.toLowerCase() === 'default' 
-                                              ? 'transparent' 
-                                              : (config.color.trim() || 'transparent')
-                                          }} 
+                                        <input
+                                          type="color"
+                                          value={getColorHex(config.color)}
+                                          onChange={(e) => {
+                                            setColorConfigs(prev => prev.map(c => 
+                                              c.id === config.id ? { ...c, color: e.target.value } : c
+                                            ));
+                                          }}
+                                          className="w-8 h-8 rounded-full border border-zinc-200 flex-shrink-0 cursor-pointer p-0 overflow-hidden outline-none [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-full shadow-sm"
                                         />
                                         <Input
                                           placeholder="e.g. #000000 or Black"
@@ -743,34 +833,6 @@ export default function Admin() {
                                       </div>
                                     </div>
 
-                                    {/* Color Sizes Stock */}
-                                    <div className="space-y-3 pt-2 border-t border-zinc-100">
-                                      <label className="text-[9px] font-black uppercase text-zinc-400 tracking-wider">Size Stock Levels</label>
-                                      <div className="grid grid-cols-5 gap-2">
-                                        {ALL_SIZES.map(s => {
-                                          const qty = config.stock[s] || 0;
-                                          return (
-                                            <div key={s} className="flex flex-col items-center bg-white p-2 rounded-xl border border-zinc-100 shadow-sm">
-                                              <span className="text-[10px] font-bold text-zinc-400 mb-1">{s}</span>
-                                              <Input 
-                                                type="number"
-                                                min="0"
-                                                value={qty}
-                                                onChange={(e) => {
-                                                  const val = Math.max(0, parseInt(e.target.value) || 0);
-                                                  setColorConfigs(prev => prev.map(c => 
-                                                    c.id === config.id 
-                                                      ? { ...c, stock: { ...c.stock, [s]: val } }
-                                                      : c
-                                                  ));
-                                                }}
-                                                className="w-10 h-7 border-none bg-zinc-50 rounded-lg text-center font-heading text-xs p-0 focus:bg-zinc-100 transition-colors"
-                                              />
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -802,7 +864,7 @@ export default function Admin() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      {products.map((product) => (
-                        <Card key={product.id} className="bg-white border-none shadow-sm rounded-3xl overflow-hidden flex h-40 group hover:shadow-lg transition-all">
+                        <Card key={product.id} className="bg-white border-none shadow-sm rounded-3xl overflow-hidden flex h-[190px] group hover:shadow-lg transition-all">
                            <div className="w-32 h-full bg-zinc-100 flex-shrink-0 relative overflow-hidden">
                               <img src={product.image || product.images?.[0]} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                            </div>

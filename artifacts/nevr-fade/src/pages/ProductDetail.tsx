@@ -1,4 +1,4 @@
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
 import { fetchProduct, Review, fetchProductReviews, createProductReview } from "@/lib/products";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
@@ -8,6 +8,42 @@ import { formatINR } from "@/lib/currency";
 import { findFirstAvailableVariant, getVariantStock } from "@/lib/stock";
 import { ChevronLeft, ChevronRight, Ruler, Star, MessageSquare, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
+
+const getColorHex = (colorName: string) => {
+  const name = (colorName || "").trim().toLowerCase();
+  
+  const colorMap: Record<string, string> = {
+    'default': '#000000',
+    'black': '#000000',
+    'white': '#ffffff',
+    'off-white': '#faf9f6',
+    'off white': '#faf9f6',
+    'red': '#ff0000',
+    'blue': '#0000ff',
+    'green': '#008000',
+    'yellow': '#ffff00',
+    'grey': '#808080',
+    'gray': '#808080',
+    'navy': '#000080',
+    'orange': '#ffa500',
+    'purple': '#800080',
+    'pink': '#ffc0cb',
+    'brown': '#a52a2a',
+    'beige': '#f5f5dc',
+    'cream': '#fffdd0',
+    'sand': '#c2b280',
+  };
+
+  if (colorMap[name]) {
+    return colorMap[name];
+  }
+  
+  if (/^#[0-9A-F]{3,8}$/i.test(name)) {
+    return name;
+  }
+  
+  return name;
+};
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +64,11 @@ export default function ProductDetail() {
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewComment, setNewReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    setIsAdmin(!!localStorage.getItem("adminToken"));
+  }, []);
 
   useEffect(() => {
     if (!product) return;
@@ -260,6 +301,14 @@ export default function ProductDetail() {
         >
           <h1 className="font-heading text-4xl md:text-5xl text-foreground mb-4">{product.title}</h1>
           <p className="font-sans text-sm tracking-widest text-muted-foreground uppercase">{product.category}</p>
+          {isAdmin && (
+            <Link
+              href={`/superadmindashboard?edit=${product.id}`}
+              className="mt-4 inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest bg-[#F5F0EB] text-[#0D0D0D] border border-primary/20 hover:bg-[#C8B89A] shadow-md transition-all z-30 relative cursor-pointer"
+            >
+              Edit Product
+            </Link>
+          )}
         </motion.div>
 
         <div className="flex flex-col lg:flex-row gap-12">
@@ -381,7 +430,7 @@ export default function ProductDetail() {
                             ? "border-2 border-foreground ring-2 ring-primary/40"
                             : "border border-primary/30"
                           }`}
-                        style={{ backgroundColor: color.toLowerCase() }}
+                        style={{ backgroundColor: getColorHex(color) }}
                         title={color}
                       />
                     ))}

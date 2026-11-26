@@ -1,16 +1,17 @@
 import { motion } from "framer-motion";
 import { Link } from "wouter";
+import heroBg from "../file_00000000fc4c7206beedabdbce646609.png";
 
 export default function Hero() {
   return (
-    <section className="relative h-screen w-full overflow-hidden flex items-center justify-center">
+    <section className="relative h-screen w-full overflow-hidden flex items-end justify-center pb-24 md:pb-32">
       {/* Background image */}
       <div
         className="absolute inset-0 bg-top bg-cover bg-no-repeat"
-        style={{ backgroundImage: "url('/1776696793600 (1).png')" }}
+        style={{ backgroundImage: `url(${heroBg})` }}
       />
       {/* Dark gradient overlay — keeps text sharp and premium */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0D0D0D]/80 via-[#0D0D0D]/60 to-[#0D0D0D]/85" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0D0D0D]/30 via-[#0D0D0D]/10 to-[#0D0D0D]/45" />
       {/* Noise texture overlay */}
       <div className="absolute inset-0 pointer-events-none" style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
@@ -18,38 +19,10 @@ export default function Hero() {
       }} />
       
       <div className="container relative z-10 px-6 md:px-12 flex flex-col items-center text-center">
-        <div className="mb-6 max-w-5xl">
-          <motion.h1
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="text-primary-foreground font-heading text-6xl md:text-8xl lg:text-[110px] tracking-wide leading-none mb-2"
-          >
-            NEVRFADE
-          </motion.h1>
-          <motion.h1
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-            className="text-primary-foreground font-heading text-6xl md:text-8xl lg:text-[110px] tracking-wide leading-none"
-          >
-            BUILT DIFFERENT
-          </motion.h1>
-        </div>
-        
-        <motion.p
-          initial={{ y: 40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-          className="text-[#C8B89A] font-sans text-lg md:text-xl max-w-2xl mb-12"
-        >
-          Premium streetwear designed to last — in style, quality, and identity.
-        </motion.p>
-        
         <motion.div
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
+          transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
         >
           <Link
             href="/products"
@@ -63,7 +36,7 @@ export default function Hero() {
         <motion.div
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
+          transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
         >
           <Link
             href="/products"
